@@ -13,5 +13,5 @@ Few interface photos:<br>
 ![settings 1](https://enthru.net/wp-content/uploads/2025/11/2025-11-25-15.15.18.jpg)
 ![settings 2](https://enthru.net/wp-content/uploads/2025/11/2025-11-25-15.15.23.jpg)
 
-Backend code - https://github.com/enthru/pa_ctl_backend
+Backend code - https://github.com/enthru/pa_ctl_backend <br>
 Backend hardware - https://oshwlab.com/enthru/pa_ctl
