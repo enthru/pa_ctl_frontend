@@ -32,3 +32,5 @@ Icon
 # VS Code backups
 *.code-workspace
 
+#squareline
+.square/*

@@ -380,6 +380,10 @@ void handleSettingsPage() {
                         <input type="number" id="min_fan_speed_temp" name="min_fan_speed_temp" step="0.1" min="10" max="60" value="0">
                     </div>
                     <div class="settings-item">
+                        <label>Maximum input power:</label>
+                        <input type="number" id="max_input_power" name="max_input_power" step="1" min="1" max="10" value="0">
+                    </div>
+                    <div class="settings-item">
                         <label>Protection Enabled:</label>
                         <div class="toggle-switch">
                             <input type="checkbox" id="protection_enabled" name="protection_enabled" class="toggle-input">
@@ -436,6 +440,7 @@ void handleSettingsPage() {
                         document.getElementById('min_pump_speed_temp').value = data.min_pump_speed_temp;
                         document.getElementById('max_fan_speed_temp').value = data.max_fan_speed_temp;
                         document.getElementById('min_fan_speed_temp').value = data.min_fan_speed_temp;
+                        document.getElementById('max_input_power').value = data.max_input_power;
 
                         document.getElementById('protection_enabled').checked = data.protection_enabled;
                         document.getElementById('autoband').checked = data.autoband;
@@ -490,6 +495,7 @@ void handleGetSettings() {
     response += "\"min_pump_speed_temp\":" + String(settings.min_pump_speed_temp, 2) + ",";
     response += "\"max_fan_speed_temp\":" + String(settings.max_fan_speed_temp, 2) + ",";
     response += "\"min_fan_speed_temp\":" + String(settings.min_fan_speed_temp, 2) + ",";
+    response += "\"max_input_power\":" + String(settings.max_input_power, 2) + ",";
     response += "\"protection_enabled\":" + String(status.protection_enabled ? "true" : "false") + ",";
     response += "\"autoband\":" + String(settings.autoband ? "true" : "false") + ",";
     response += "\"default_band\":\"" + String(settings.default_band) + "\"";
@@ -513,6 +519,8 @@ void handleSaveSettings() {
     if (server.hasArg("min_pump_speed_temp")) settings.min_pump_speed_temp = server.arg("min_pump_speed_temp").toFloat();
     if (server.hasArg("max_fan_speed_temp")) settings.max_fan_speed_temp = server.arg("max_fan_speed_temp").toFloat();
     if (server.hasArg("min_fan_speed_temp")) settings.min_fan_speed_temp = server.arg("min_fan_speed_temp").toFloat();
+    if (server.hasArg("max_input_power")) settings.max_input_power = server.arg("max_input_power").toInt();
+    
     
     status.protection_enabled = server.hasArg("protection_enabled");
     settings.autoband = server.hasArg("autoband");
@@ -848,6 +856,7 @@ void settingsNext(lv_event_t * e) {
     settings.max_voltage = lv_slider_get_value(ui_voltageSlider);
     settings.max_plate_temp = lv_slider_get_value(ui_plateTmpSlider);
     settings.max_water_temp = lv_slider_get_value(ui_waterTmpSlider);
+    settings.max_input_power = lv_slider_get_value(ui_maxIPWRSlider);
 }
 void saveSettings(lv_event_t * e) {
     settings.max_pump_speed_temp = lv_slider_get_value(ui_maxPumpSpdTmpSlider);
@@ -868,13 +877,23 @@ void saveSettings(lv_event_t * e) {
     Serial.println("Min Pump Speed Temp: " + String(settings.min_pump_speed_temp));
     Serial.println("Max Fan Speed Temp: " + String(settings.max_fan_speed_temp));
     Serial.println("Min Fan Speed Temp: " + String(settings.min_fan_speed_temp));
+    Serial.println("Max input power: " + String(settings.max_input_power));
     Serial.println("Protection Enabled: " + String(status.protection_enabled));
 #endif
     sendStateData();
     sendSettingsData();
 }
 
-void resetAlert(lv_event_t * e) {}
+void resetAlert(lv_event_t * e) {
+    state.alarm = false;
+    status.alarm = false;
+    status.ptt = false;
+    state.ptt = false;
+    state.state = false;
+    status.state = false;
+    sendStateData();
+    delay(200);
+}
 void mainRightLoaded(lv_event_t * e) {}
 
 void dropdown_set_by_text(lv_obj_t *dropdown, const char *text) {
@@ -927,6 +946,9 @@ void protectionOpened(lv_event_t * e) {
     lv_label_set_text(ui_minFanSpeedTmp, String(settings.min_fan_speed_temp).c_str());
     lv_slider_set_value(ui_minFanSpdTmpSlider, settings.min_fan_speed_temp, LV_ANIM_OFF);
 
+    lv_label_set_text(ui_maxIPWR, String(settings.max_input_power).c_str());
+    lv_slider_set_value(ui_maxIPWRSlider, settings.max_input_power, LV_ANIM_OFF);
+
     set_switch_state(ui_protectionSwitch, status.protection_enabled);
 
     dropdown_set_by_text(ui_defaultBandDropdown, settings.default_band);
@@ -968,6 +990,7 @@ void debugSettingsData() {
     Serial.print("Min Pump Speed Temp: "); Serial.println(settings.min_pump_speed_temp);
     Serial.print("Max Fan Speed Temp: "); Serial.println(settings.max_fan_speed_temp);
     Serial.print("Min Fan Speed Temp: "); Serial.println(settings.min_fan_speed_temp);
+    Serial.print("Max input power: "); Serial.println(settings.max_input_power);
     Serial.print("Autoband: "); Serial.println(settings.autoband ? "true" : "false");
     Serial.print("Default Band: "); Serial.println(settings.default_band);
     Serial.println("====================");
@@ -1048,6 +1071,7 @@ void sendSettingsData() {
         "\"min_pump_speed_temp\":%.2f,"
         "\"max_fan_speed_temp\":%.2f,"
         "\"min_fan_speed_temp\":%.2f,"
+        "\"max_input_power\":%d,"
         "\"autoband\":%s,"
         "\"default_band\":\"%s\"}}",
         settings.max_swr,
@@ -1059,6 +1083,7 @@ void sendSettingsData() {
         settings.min_pump_speed_temp,
         settings.max_fan_speed_temp,
         settings.min_fan_speed_temp,
+        settings.max_input_power,
         settings.autoband ? "true" : "false",
         settings.default_band
     );
@@ -1093,7 +1118,11 @@ void sendStateData() {
     
     char json[256];
     strcpy(json, "{\"state\":{");
-    
+
+    strcat(json, "\"alarm\":");
+    strcat(json, state.alarm ? "true" : "false");
+    strcat(json, ",");
+
     strcat(json, "\"enabled\":");
     strcat(json, state.state ? "true" : "false");
     strcat(json, ",");
@@ -1684,5 +1713,5 @@ void loop() {
     server.handleClient();
   }
   
-  //if (status.alarm) {lv_label_set_text(ui_alertReason, String(status.alert_reason).c_str()); lv_scr_load(ui_warning);}
+  if (status.alarm) {lv_label_set_text(ui_alertReason, String(status.alert_reason).c_str()); lv_scr_load(ui_warning);}
 }

@@ -38,6 +38,7 @@ typedef struct {
     float min_pump_speed_temp;
     float max_fan_speed_temp;
     float min_fan_speed_temp;
+    int   max_input_power;
     bool autoband;
     char default_band[10];
 } SettingsData;
@@ -50,6 +51,7 @@ typedef struct {
     bool auto_pwm_pump;
     bool auto_pwm_fan;
     bool state;
+    bool alarm;
 } StateData;
 
 char* getJsonValue(char* json, const char* key);
