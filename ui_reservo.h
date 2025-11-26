@@ -13,7 +13,7 @@ extern "C" {
 // SCREEN: ui_calibration
 extern void ui_calibration_screen_init(void);
 extern void ui_calibration_screen_destroy(void);
-extern lv_obj_t *ui_calibration;
+extern lv_obj_t *ui_reservo;
 extern void ui_event_Button13( lv_event_t * e);
 extern lv_obj_t *ui_Button13;
 extern lv_obj_t *ui_Label111;

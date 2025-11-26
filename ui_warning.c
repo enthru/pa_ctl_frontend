@@ -13,9 +13,6 @@ void ui_event_Button11( lv_event_t * e) {
 if ( event_code == LV_EVENT_CLICKED) {
       resetAlert( e );
 }
-if ( event_code == LV_EVENT_CLICKED) {
-      _ui_screen_change( &ui_main, LV_SCR_LOAD_ANIM_NONE, 500, 0, &ui_main_screen_init);
-}
 }
 
 // build funtions

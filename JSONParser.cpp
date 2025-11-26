@@ -6,6 +6,7 @@
 extern StatusData status;
 extern SettingsData settings;
 extern StateData state;
+extern CalibrationData calibration;
 
 char* getJsonValue(char* json, const char* key) {
     static char value[128];
@@ -127,6 +128,56 @@ int parseStatusJson(char* jsonString) {
     
 #if DEBUG
     Serial.println("[DEBUG] Status parsing completed successfully");
+#endif
+    
+    return 1;
+}
+
+int parseCalibrationJson(char* jsonString) {
+    if (!jsonString) {
+        return 0;
+    }
+    
+    char* calibrationStart = strstr(jsonString, "\"calibration\":");
+    if (!calibrationStart) {
+        return 0;
+    }
+    
+    char* braceStart = strchr(calibrationStart, '{');
+    char* braceEnd = strchr(braceStart, '}');
+    if (!braceStart || !braceEnd) {
+        return 0;
+    }
+    
+    char calibrationObj[512];
+    int objLen = braceEnd - braceStart + 1;
+    if (objLen <= 0 || objLen > 511) {
+        return 0;
+    }
+    
+    strncpy(calibrationObj, braceStart, objLen);
+    calibrationObj[objLen] = '\0';
+    
+#if DEBUG
+    Serial.print("[DEBUG] Parsing calibration object: ");
+    Serial.println(calibrationObj);
+#endif
+
+    calibration.low_fwd_coeff = atof(getJsonValue(calibrationObj, "low_fwd_coeff"));
+    calibration.low_rev_coeff = atof(getJsonValue(calibrationObj, "low_rev_coeff"));
+    calibration.low_ifwd_coeff = atof(getJsonValue(calibrationObj, "low_ifwd_coeff"));
+    calibration.mid_fwd_coeff = atof(getJsonValue(calibrationObj, "mid_fwd_coeff"));
+    calibration.mid_rev_coeff = atof(getJsonValue(calibrationObj, "mid_rev_coeff"));
+    calibration.mid_ifwd_coeff = atof(getJsonValue(calibrationObj, "mid_ifwd_coeff"));
+    calibration.high_fwd_coeff = atof(getJsonValue(calibrationObj, "high_fwd_coeff"));
+    calibration.high_rev_coeff = atof(getJsonValue(calibrationObj, "high_rev_coeff"));
+    calibration.high_ifwd_coeff = atof(getJsonValue(calibrationObj, "high_ifwd_coeff"));
+    calibration.voltage_coeff = atof(getJsonValue(calibrationObj, "voltage_coeff"));
+    calibration.current_coeff = atof(getJsonValue(calibrationObj, "current_coeff"));
+    calibration.rsrv_coeff = atof(getJsonValue(calibrationObj, "rsrv_coeff"));
+    
+#if DEBUG
+    Serial.println("[DEBUG] Calibration parsing completed successfully");
 #endif
     
     return 1;

@@ -44,6 +44,21 @@ typedef struct {
 } SettingsData;
 
 typedef struct {
+    float low_fwd_coeff;
+    float low_rev_coeff;
+    float low_ifwd_coeff;
+    float mid_fwd_coeff;
+    float mid_rev_coeff;
+    float mid_ifwd_coeff;
+    float high_fwd_coeff;
+    float high_rev_coeff;
+    float high_ifwd_coeff;
+    float voltage_coeff;
+    float current_coeff;
+    float rsrv_coeff;
+} CalibrationData;
+
+typedef struct {
     bool ptt;
     int pwm_pump;
     int pwm_cooler;
@@ -57,6 +72,7 @@ typedef struct {
 char* getJsonValue(char* json, const char* key);
 int parseStatusJson(char* jsonString);
 int parseSettingsJson(char* jsonString);
+int parseCalibrationJson(char* jsonString);
 
 #ifdef __cplusplus
 }

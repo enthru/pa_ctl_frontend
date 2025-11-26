@@ -14,6 +14,7 @@ void enableAmp(lv_event_t * e);
 void togglePTT(lv_event_t * e);
 void protectionOpened(lv_event_t * e);
 void settingsNext(lv_event_t * e);
+void bandOpened(lv_event_t * e);
 void toggleAutoBand(lv_event_t * e);
 void set_band(lv_event_t * e);
 void mainRightLoaded(lv_event_t * e);

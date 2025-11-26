@@ -7,9 +7,10 @@ SET(SOURCES ui_main.c
     ui_mainRight.c
     ui_warning.c
     ui_protection2.c
-    ui_calibration.c
+    ui_reservo.c
     ui.c
     ui_comp_hook.c
-    ui_helpers.c)
+    ui_helpers.c
+    ui_events.c)
 
 add_library(ui ${SOURCES})

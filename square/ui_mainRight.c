@@ -5,7 +5,7 @@
 
 #include "ui.h"
 
-lv_obj_t *ui_mainRight = NULL;lv_obj_t *ui_Label43 = NULL;lv_obj_t *ui_Label44 = NULL;lv_obj_t *ui_Label45 = NULL;lv_obj_t *ui_Label46 = NULL;lv_obj_t *ui_Label47 = NULL;lv_obj_t *ui_Label48 = NULL;lv_obj_t *ui_Label49 = NULL;lv_obj_t *ui_Label50 = NULL;lv_obj_t *ui_Label51 = NULL;
+lv_obj_t *ui_mainRight = NULL;lv_obj_t *ui_Label43 = NULL;lv_obj_t *ui_Label44 = NULL;lv_obj_t *ui_Label45 = NULL;lv_obj_t *ui_Label46 = NULL;lv_obj_t *ui_Label47 = NULL;lv_obj_t *ui_Label48 = NULL;lv_obj_t *ui_Label49 = NULL;lv_obj_t *ui_ipADDR = NULL;lv_obj_t *ui_SSID = NULL;lv_obj_t *ui_uptime = NULL;
 // event funtions
 void ui_event_mainRight( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -87,23 +87,32 @@ lv_obj_set_y( ui_Label49, 119 );
 lv_obj_set_align( ui_Label49, LV_ALIGN_CENTER );
 lv_label_set_text(ui_Label49,"Frontend version:");
 
-ui_Label50 = lv_label_create(ui_mainRight);
-lv_obj_set_width( ui_Label50, LV_SIZE_CONTENT);  /// 1
-lv_obj_set_height( ui_Label50, LV_SIZE_CONTENT);   /// 1
-lv_obj_set_x( ui_Label50, -177 );
-lv_obj_set_y( ui_Label50, 7 );
-lv_obj_set_align( ui_Label50, LV_ALIGN_CENTER );
-lv_label_set_text(ui_Label50,"Max. PTT:");
-lv_obj_set_style_text_font(ui_Label50, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
+ui_ipADDR = lv_label_create(ui_mainRight);
+lv_obj_set_width( ui_ipADDR, LV_SIZE_CONTENT);  /// 1
+lv_obj_set_height( ui_ipADDR, LV_SIZE_CONTENT);   /// 1
+lv_obj_set_x( ui_ipADDR, 6 );
+lv_obj_set_y( ui_ipADDR, -90 );
+lv_obj_set_align( ui_ipADDR, LV_ALIGN_CENTER );
+lv_label_set_text(ui_ipADDR,"XXX");
+lv_obj_set_style_text_font(ui_ipADDR, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
 
-ui_Label51 = lv_label_create(ui_mainRight);
-lv_obj_set_width( ui_Label51, LV_SIZE_CONTENT);  /// 1
-lv_obj_set_height( ui_Label51, LV_SIZE_CONTENT);   /// 1
-lv_obj_set_x( ui_Label51, -174 );
-lv_obj_set_y( ui_Label51, 30 );
-lv_obj_set_align( ui_Label51, LV_ALIGN_CENTER );
-lv_label_set_text(ui_Label51,"Total PTT:");
-lv_obj_set_style_text_font(ui_Label51, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
+ui_SSID = lv_label_create(ui_mainRight);
+lv_obj_set_width( ui_SSID, LV_SIZE_CONTENT);  /// 1
+lv_obj_set_height( ui_SSID, LV_SIZE_CONTENT);   /// 1
+lv_obj_set_x( ui_SSID, 3 );
+lv_obj_set_y( ui_SSID, -114 );
+lv_obj_set_align( ui_SSID, LV_ALIGN_CENTER );
+lv_label_set_text(ui_SSID,"XXX");
+lv_obj_set_style_text_font(ui_SSID, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
+
+ui_uptime = lv_label_create(ui_mainRight);
+lv_obj_set_width( ui_uptime, LV_SIZE_CONTENT);  /// 1
+lv_obj_set_height( ui_uptime, LV_SIZE_CONTENT);   /// 1
+lv_obj_set_x( ui_uptime, -3 );
+lv_obj_set_y( ui_uptime, -62 );
+lv_obj_set_align( ui_uptime, LV_ALIGN_CENTER );
+lv_label_set_text(ui_uptime,"XXX");
+lv_obj_set_style_text_font(ui_uptime, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
 
 lv_obj_add_event_cb(ui_mainRight, ui_event_mainRight, LV_EVENT_ALL, NULL);
 
@@ -122,7 +131,8 @@ ui_Label46= NULL;
 ui_Label47= NULL;
 ui_Label48= NULL;
 ui_Label49= NULL;
-ui_Label50= NULL;
-ui_Label51= NULL;
+ui_ipADDR= NULL;
+ui_SSID= NULL;
+ui_uptime= NULL;
 
 }

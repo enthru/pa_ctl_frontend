@@ -7,6 +7,14 @@
 
 lv_obj_t *ui_bands = NULL;lv_obj_t *ui_Label28 = NULL;lv_obj_t *ui_autoSelectSwitch = NULL;lv_obj_t *ui_Button160m = NULL;lv_obj_t *ui_Button80m = NULL;lv_obj_t *ui_Button60m = NULL;lv_obj_t *ui_Button40m = NULL;lv_obj_t *ui_Label30 = NULL;lv_obj_t *ui_Label31 = NULL;lv_obj_t *ui_Label32 = NULL;lv_obj_t *ui_Label33 = NULL;lv_obj_t *ui_Button30m = NULL;lv_obj_t *ui_Button12m = NULL;lv_obj_t *ui_Button20m = NULL;lv_obj_t *ui_Button17m = NULL;lv_obj_t *ui_Button15m = NULL;lv_obj_t *ui_Label34 = NULL;lv_obj_t *ui_Label35 = NULL;lv_obj_t *ui_Label36 = NULL;lv_obj_t *ui_Label37 = NULL;lv_obj_t *ui_Label38 = NULL;lv_obj_t *ui_Button10m = NULL;lv_obj_t *ui_Button6m = NULL;lv_obj_t *ui_Label40 = NULL;lv_obj_t *ui_Label41 = NULL;lv_obj_t *ui_Button3 = NULL;lv_obj_t *ui_Label5 = NULL;
 // event funtions
+void ui_event_bands( lv_event_t * e) {
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+if ( event_code == LV_EVENT_SCREEN_LOADED) {
+      bandOpened( e );
+}
+}
+
 void ui_event_autoSelectSwitch( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);
 
@@ -374,6 +382,7 @@ lv_obj_add_event_cb(ui_Button15m, ui_event_Button15m, LV_EVENT_ALL, NULL);
 lv_obj_add_event_cb(ui_Button10m, ui_event_Button10m, LV_EVENT_ALL, NULL);
 lv_obj_add_event_cb(ui_Button6m, ui_event_Button6m, LV_EVENT_ALL, NULL);
 lv_obj_add_event_cb(ui_Button3, ui_event_Button3, LV_EVENT_ALL, NULL);
+lv_obj_add_event_cb(ui_bands, ui_event_bands, LV_EVENT_ALL, NULL);
 
 }
 

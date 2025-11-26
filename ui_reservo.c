@@ -5,7 +5,7 @@
 
 #include "ui.h"
 
-lv_obj_t *ui_calibration = NULL;lv_obj_t *ui_Button13 = NULL;lv_obj_t *ui_Label111 = NULL;
+lv_obj_t *ui_reservo = NULL;lv_obj_t *ui_Button13 = NULL;lv_obj_t *ui_Label111 = NULL;
 // event funtions
 void ui_event_Button13( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -17,12 +17,12 @@ if ( event_code == LV_EVENT_CLICKED) {
 
 // build funtions
 
-void ui_calibration_screen_init(void)
+void ui_reservo_screen_init(void)
 {
-ui_calibration = lv_obj_create(NULL);
-lv_obj_remove_flag( ui_calibration, LV_OBJ_FLAG_SCROLLABLE );    /// Flags
+ui_reservo = lv_obj_create(NULL);
+lv_obj_remove_flag( ui_reservo, LV_OBJ_FLAG_SCROLLABLE );    /// Flags
 
-ui_Button13 = lv_button_create(ui_calibration);
+ui_Button13 = lv_button_create(ui_reservo);
 lv_obj_set_width( ui_Button13, 100);
 lv_obj_set_height( ui_Button13, 50);
 lv_obj_set_x( ui_Button13, -175 );
@@ -31,7 +31,7 @@ lv_obj_set_align( ui_Button13, LV_ALIGN_CENTER );
 lv_obj_add_flag( ui_Button13, LV_OBJ_FLAG_SCROLL_ON_FOCUS );   /// Flags
 lv_obj_remove_flag( ui_Button13, LV_OBJ_FLAG_SCROLLABLE );    /// Flags
 
-ui_Label111 = lv_label_create(ui_calibration);
+ui_Label111 = lv_label_create(ui_reservo);
 lv_obj_set_width( ui_Label111, LV_SIZE_CONTENT);  /// 1
 lv_obj_set_height( ui_Label111, LV_SIZE_CONTENT);   /// 1
 lv_obj_set_x( ui_Label111, -179 );
@@ -44,12 +44,12 @@ lv_obj_add_event_cb(ui_Button13, ui_event_Button13, LV_EVENT_ALL, NULL);
 
 }
 
-void ui_calibration_screen_destroy(void)
+void ui_reservo_screen_destroy(void)
 {
-   if (ui_calibration) lv_obj_del(ui_calibration);
+   if (ui_reservo) lv_obj_del(ui_reservo);
 
 // NULL screen variables
-ui_calibration= NULL;
+ui_reservo= NULL;
 ui_Button13= NULL;
 ui_Label111= NULL;
 

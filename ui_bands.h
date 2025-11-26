@@ -13,6 +13,7 @@ extern "C" {
 // SCREEN: ui_bands
 extern void ui_bands_screen_init(void);
 extern void ui_bands_screen_destroy(void);
+extern void ui_event_bands( lv_event_t * e);
 extern lv_obj_t *ui_bands;
 extern lv_obj_t *ui_Label28;
 extern void ui_event_autoSelectSwitch( lv_event_t * e);

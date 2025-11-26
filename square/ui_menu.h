@@ -23,9 +23,6 @@ extern void ui_event_Button6( lv_event_t * e);
 extern lv_obj_t *ui_Button6;
 extern lv_obj_t *ui_Label17;
 extern lv_obj_t *ui_Label24;
-extern void ui_event_Button12( lv_event_t * e);
-extern lv_obj_t *ui_Button12;
-extern lv_obj_t *ui_Label42;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus

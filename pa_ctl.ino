@@ -41,6 +41,7 @@ const unsigned long CONNECTION_TIMEOUT = 10000;
 StatusData status;
 SettingsData settings; 
 StateData state;
+CalibrationData calibration;
 
 #define DEBUG 0
 #define TEST_UART 0
@@ -71,7 +72,9 @@ enum ResponseType {
   RESPONSE_NONE,
   RESPONSE_SETTINGS_REQUEST,
   RESPONSE_SETTINGS_SEND,
-  RESPONSE_STATE_SEND
+  RESPONSE_STATE_SEND,
+  RESPONSE_CALIBRATION_REQUEST,
+  RESPONSE_CALIBRATION_SEND
 };
 
 ResponseType waitingForResponse = RESPONSE_NONE;
@@ -180,6 +183,7 @@ void handleRoot() {
             <div class="navigation">
                 <button onclick="location.href='/band'">Band Selection</button>
                 <button onclick="location.href='/settings'">Settings</button>
+                <button onclick="location.href='/calibration'">Calibration</button>
             </div>
         </div>
         <script>
@@ -327,6 +331,173 @@ void handleBandPage() {
     )rawliteral";
     
     server.send(200, "text/html", html);
+}
+
+// Calibration page
+void handleCalibrationPage() {
+    String html = R"rawliteral(
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Calibration</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="/style.css">
+    </head>
+    <body>
+        <div class="container">
+            <h1>Calibration Settings</h1>
+            <form id="calibrationForm" action="/savecalibration" method="POST">
+                <div class="settings-grid">
+                    <div class="settings-item">
+                        <label>Low Band FWD Coefficient:</label>
+                        <input type="number" id="low_fwd_coeff" name="low_fwd_coeff" step="0.0001" min="0" max="10" value="0">
+                    </div>
+                    <div class="settings-item">
+                        <label>Low Band REV Coefficient:</label>
+                        <input type="number" id="low_rev_coeff" name="low_rev_coeff" step="0.0001" min="0" max="10" value="0">
+                    </div>
+                    <div class="settings-item">
+                        <label>Low Band IFWD Coefficient:</label>
+                        <input type="number" id="low_ifwd_coeff" name="low_ifwd_coeff" step="0.0001" min="0" max="10" value="0">
+                    </div>
+                    <div class="settings-item">
+                        <label>Mid Band FWD Coefficient:</label>
+                        <input type="number" id="mid_fwd_coeff" name="mid_fwd_coeff" step="0.0001" min="0" max="10" value="0">
+                    </div>
+                    <div class="settings-item">
+                        <label>Mid Band REV Coefficient:</label>
+                        <input type="number" id="mid_rev_coeff" name="mid_rev_coeff" step="0.0001" min="0" max="10" value="0">
+                    </div>
+                    <div class="settings-item">
+                        <label>Mid Band IFWD Coefficient:</label>
+                        <input type="number" id="mid_ifwd_coeff" name="mid_ifwd_coeff" step="0.0001" min="0" max="10" value="0">
+                    </div>
+                    <div class="settings-item">
+                        <label>High Band FWD Coefficient:</label>
+                        <input type="number" id="high_fwd_coeff" name="high_fwd_coeff" step="0.0001" min="0" max="10" value="0">
+                    </div>
+                    <div class="settings-item">
+                        <label>High Band REV Coefficient:</label>
+                        <input type="number" id="high_rev_coeff" name="high_rev_coeff" step="0.0001" min="0" max="10" value="0">
+                    </div>
+                    <div class="settings-item">
+                        <label>High Band IFWD Coefficient:</label>
+                        <input type="number" id="high_ifwd_coeff" name="high_ifwd_coeff" step="0.0001" min="0" max="10" value="0">
+                    </div>
+                    <div class="settings-item">
+                        <label>Voltage Coefficient:</label>
+                        <input type="number" id="voltage_coeff" name="voltage_coeff" step="0.0001" min="0" max="10" value="0">
+                    </div>
+                    <div class="settings-item">
+                        <label>Current Coefficient:</label>
+                        <input type="number" id="current_coeff" name="current_coeff" step="0.0001" min="0" max="10" value="0">
+                    </div>
+                    <div class="settings-item">
+                        <label>Reserve Coefficient:</label>
+                        <input type="number" id="rsrv_coeff" name="rsrv_coeff" step="0.0001" min="0" max="10" value="0">
+                    </div>
+                </div>
+                <div class="navigation">
+                    <button type="button" onclick="location.href='/'">Back to Status</button>
+                    <button type="submit">Save Calibration</button>
+                    <span id="message" class="message"></span>
+                </div>
+            </form>
+        </div>
+        <script>
+            function loadCalibration() {
+                fetch('/getcalibration')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        document.getElementById('low_fwd_coeff').value = data.low_fwd_coeff;
+                        document.getElementById('low_rev_coeff').value = data.low_rev_coeff;
+                        document.getElementById('low_ifwd_coeff').value = data.low_ifwd_coeff;
+                        document.getElementById('mid_fwd_coeff').value = data.mid_fwd_coeff;
+                        document.getElementById('mid_rev_coeff').value = data.mid_rev_coeff;
+                        document.getElementById('mid_ifwd_coeff').value = data.mid_ifwd_coeff;
+                        document.getElementById('high_fwd_coeff').value = data.high_fwd_coeff;
+                        document.getElementById('high_rev_coeff').value = data.high_rev_coeff;
+                        document.getElementById('high_ifwd_coeff').value = data.high_ifwd_coeff;
+                        document.getElementById('voltage_coeff').value = data.voltage_coeff;
+                        document.getElementById('current_coeff').value = data.current_coeff;
+                        document.getElementById('rsrv_coeff').value = data.rsrv_coeff;
+                        
+                        console.log('Calibration loaded successfully');
+                    })
+                    .catch(error => {
+                        console.error('Error loading calibration:', error);
+                        document.getElementById('message').textContent = 'Error loading calibration: ' + error.message;
+                    });
+            }
+
+            document.addEventListener('DOMContentLoaded', loadCalibration);
+
+            document.getElementById('calibrationForm').addEventListener('submit', function(e) {
+                document.getElementById('message').textContent = 'Saving calibration...';
+            });
+
+            setInterval(loadCalibration, 30000);
+        </script>
+    </body>
+    </html>
+    )rawliteral";
+    
+    server.send(200, "text/html", html);
+}
+
+void handleGetCalibration() {
+    if (!requestAndWaitForCalibration(300)) {
+        server.send(503, "application/json", "{\"error\":\"Busy or timeout\"}");
+        return;
+    }
+    
+    String response = "{";
+    response += "\"low_fwd_coeff\":" + String(calibration.low_fwd_coeff, 4) + ",";
+    response += "\"low_rev_coeff\":" + String(calibration.low_rev_coeff, 4) + ",";
+    response += "\"low_ifwd_coeff\":" + String(calibration.low_ifwd_coeff, 4) + ",";
+    response += "\"mid_fwd_coeff\":" + String(calibration.mid_fwd_coeff, 4) + ",";
+    response += "\"mid_rev_coeff\":" + String(calibration.mid_rev_coeff, 4) + ",";
+    response += "\"mid_ifwd_coeff\":" + String(calibration.mid_ifwd_coeff, 4) + ",";
+    response += "\"high_fwd_coeff\":" + String(calibration.high_fwd_coeff, 4) + ",";
+    response += "\"high_rev_coeff\":" + String(calibration.high_rev_coeff, 4) + ",";
+    response += "\"high_ifwd_coeff\":" + String(calibration.high_ifwd_coeff, 4) + ",";
+    response += "\"voltage_coeff\":" + String(calibration.voltage_coeff, 4) + ",";
+    response += "\"current_coeff\":" + String(calibration.current_coeff, 4) + ",";
+    response += "\"rsrv_coeff\":" + String(calibration.rsrv_coeff, 4);
+    response += "}";
+    
+    server.send(200, "application/json", response);
+}
+
+void handleSaveCalibration() {
+    if (server.method() != HTTP_POST) {
+        server.send(405, "text/plain", "Method Not Allowed");
+        return;
+    }
+
+    if (server.hasArg("low_fwd_coeff")) calibration.low_fwd_coeff = server.arg("low_fwd_coeff").toFloat();
+    if (server.hasArg("low_rev_coeff")) calibration.low_rev_coeff = server.arg("low_rev_coeff").toFloat();
+    if (server.hasArg("low_ifwd_coeff")) calibration.low_ifwd_coeff = server.arg("low_ifwd_coeff").toFloat();
+    if (server.hasArg("mid_fwd_coeff")) calibration.mid_fwd_coeff = server.arg("mid_fwd_coeff").toFloat();
+    if (server.hasArg("mid_rev_coeff")) calibration.mid_rev_coeff = server.arg("mid_rev_coeff").toFloat();
+    if (server.hasArg("mid_ifwd_coeff")) calibration.mid_ifwd_coeff = server.arg("mid_ifwd_coeff").toFloat();
+    if (server.hasArg("high_fwd_coeff")) calibration.high_fwd_coeff = server.arg("high_fwd_coeff").toFloat();
+    if (server.hasArg("high_rev_coeff")) calibration.high_rev_coeff = server.arg("high_rev_coeff").toFloat();
+    if (server.hasArg("high_ifwd_coeff")) calibration.high_ifwd_coeff = server.arg("high_ifwd_coeff").toFloat();
+    if (server.hasArg("voltage_coeff")) calibration.voltage_coeff = server.arg("voltage_coeff").toFloat();
+    if (server.hasArg("current_coeff")) calibration.current_coeff = server.arg("current_coeff").toFloat();
+    if (server.hasArg("rsrv_coeff")) calibration.rsrv_coeff = server.arg("rsrv_coeff").toFloat();
+
+    // Send calibration data to device
+    sendCalibrationData();
+    
+    server.sendHeader("Location", "/");
+    server.send(303);
 }
 
 void handleSettingsPage() {
@@ -810,6 +981,141 @@ void setupOTA() {
 
 //////////////////////////////////////////// DATA PROCESSING ////////////////////////////////////////////
 
+String getUptime() {
+  unsigned long up = millis() / 1000;
+  char buffer[20];
+  snprintf(buffer, sizeof(buffer), "%lu:%02lu:%02lu", 
+           up / 86400,
+           (up % 86400) / 3600,
+           (up % 3600) / 60);
+  return String(buffer);
+}
+
+// Function to request calibration data
+bool requestAndWaitForCalibration(unsigned long timeout) {
+#if DEBUG
+    Serial.println("[DEBUG] Starting calibration request with waiting");
+#endif
+
+    waitingForResponse = RESPONSE_NONE;
+    responseRetryCount = 0;
+
+    sendCalibrationCommand();
+    
+    unsigned long startTime = millis();
+
+    while (millis() - startTime < timeout) {
+        handleUARTData();
+
+        if (waitingForResponse == RESPONSE_NONE) {
+            if (calibration.low_fwd_coeff > 0 || calibration.voltage_coeff > 0) {
+#if DEBUG
+                Serial.println("[DEBUG] Calibration received successfully");
+                debugCalibrationData();
+#endif
+                return true;
+            }
+        }
+        
+        handleResponseRetry();
+    }
+    
+#if DEBUG
+    Serial.println("[DEBUG] Calibration request timeout");
+#endif
+    return false;
+}
+
+// Function to send calibration request command
+void sendCalibrationCommand() {
+#if DEBUG
+    Serial.print("[DEBUG] Sending calibration request command");
+    if (responseRetryCount > 0) {
+        Serial.print(" (retry ");
+        Serial.print(responseRetryCount);
+        Serial.print("/");
+        Serial.print(MAX_RETRIES);
+        Serial.print(")");
+    }
+    Serial.println();
+#endif
+    Serial1.println("{\"command\":{\"value\":\"calibration\"}}");
+    
+    waitingForResponse = RESPONSE_CALIBRATION_REQUEST;
+    responseRequestTime = millis();
+}
+
+// Function to send calibration data to device
+void sendCalibrationData() {
+#if DEBUG
+    Serial.print("[DEBUG] Sending calibration data");
+    if (responseRetryCount > 0) {
+        Serial.print(" (retry ");
+        Serial.print(responseRetryCount);
+        Serial.print("/");
+        Serial.print(MAX_RETRIES);
+        Serial.print(")");
+    }
+    Serial.println();
+#endif
+
+    char json[768];
+    snprintf(json, sizeof(json),
+        "{\"calibration\":{"
+        "\"low_fwd_coeff\":%.4f,"
+        "\"low_rev_coeff\":%.4f,"
+        "\"low_ifwd_coeff\":%.4f,"
+        "\"mid_fwd_coeff\":%.4f,"
+        "\"mid_rev_coeff\":%.4f,"
+        "\"mid_ifwd_coeff\":%.4f,"
+        "\"high_fwd_coeff\":%.4f,"
+        "\"high_rev_coeff\":%.4f,"
+        "\"high_ifwd_coeff\":%.4f,"
+        "\"voltage_coeff\":%.4f,"
+        "\"current_coeff\":%.4f,"
+        "\"rsrv_coeff\":%.4f}}",
+        calibration.low_fwd_coeff,
+        calibration.low_rev_coeff,
+        calibration.low_ifwd_coeff,
+        calibration.mid_fwd_coeff,
+        calibration.mid_rev_coeff,
+        calibration.mid_ifwd_coeff,
+        calibration.high_fwd_coeff,
+        calibration.high_rev_coeff,
+        calibration.high_ifwd_coeff,
+        calibration.voltage_coeff,
+        calibration.current_coeff,
+        calibration.rsrv_coeff
+    );
+
+#if DEBUG
+    Serial.print("[DEBUG] Calibration JSON: ");
+    Serial.println(json);
+#endif
+    Serial1.println(json);
+    
+    waitingForResponse = RESPONSE_CALIBRATION_SEND;
+    responseRequestTime = millis();
+}
+
+// Debug function for calibration data
+void debugCalibrationData() {
+    Serial.println("=== CALIBRATION DATA ===");
+    Serial.print("Low FWD Coeff: "); Serial.println(calibration.low_fwd_coeff, 4);
+    Serial.print("Low REV Coeff: "); Serial.println(calibration.low_rev_coeff, 4);
+    Serial.print("Low IFWD Coeff: "); Serial.println(calibration.low_ifwd_coeff, 4);
+    Serial.print("Mid FWD Coeff: "); Serial.println(calibration.mid_fwd_coeff, 4);
+    Serial.print("Mid REV Coeff: "); Serial.println(calibration.mid_rev_coeff, 4);
+    Serial.print("Mid IFWD Coeff: "); Serial.println(calibration.mid_ifwd_coeff, 4);
+    Serial.print("High FWD Coeff: "); Serial.println(calibration.high_fwd_coeff, 4);
+    Serial.print("High REV Coeff: "); Serial.println(calibration.high_rev_coeff, 4);
+    Serial.print("High IFWD Coeff: "); Serial.println(calibration.high_ifwd_coeff, 4);
+    Serial.print("Voltage Coeff: "); Serial.println(calibration.voltage_coeff, 4);
+    Serial.print("Current Coeff: "); Serial.println(calibration.current_coeff, 4);
+    Serial.print("Reserve Coeff: "); Serial.println(calibration.rsrv_coeff, 4);
+    Serial.println("=======================");
+}
+
 bool requestAndWaitForSettings(unsigned long timeout) {
 #if DEBUG
     Serial.println("[DEBUG] Starting settings request with waiting");
@@ -844,10 +1150,15 @@ bool requestAndWaitForSettings(unsigned long timeout) {
     return false;
 }
 
-// feel da beat
 void toggleAutoBand(lv_event_t * e) {
     settings.autoband = lv_obj_get_state(ui_protectionSwitch) & LV_STATE_CHECKED;
     sendSettingsData();
+}
+
+void bandOpened(lv_event_t * e) {
+    if (requestAndWaitForSettings(300)) {
+        set_switch_state(ui_autoSelectSwitch, settings.autoband);
+    }
 }
 
 void settingsNext(lv_event_t * e) {
@@ -894,7 +1205,12 @@ void resetAlert(lv_event_t * e) {
     sendStateData();
     lv_scr_load(ui_main);    
 }
-void mainRightLoaded(lv_event_t * e) {}
+void mainRightLoaded(lv_event_t * e) {
+    lv_label_set_text(ui_SSID, WiFi.SSID().c_str());
+    lv_label_set_text(ui_ipADDR, WiFi.localIP().toString().c_str());
+    lv_label_set_text(ui_uptime, getUptime().c_str());
+
+}
 
 void dropdown_set_by_text(lv_obj_t *dropdown, const char *text) {
     const char *options = lv_dropdown_get_options(dropdown);
@@ -999,15 +1315,21 @@ void debugSettingsData() {
 bool parseAckResponse(const char* json, ResponseType expectedResponse) {
     if (strstr(json, "\"response\":\"settings updated\"") != NULL) {
 #if DEBUG
-    Serial.println("Settings update RESPONSOR!");
+        Serial.println("Settings update RESPONSE!");
 #endif
         return expectedResponse == RESPONSE_SETTINGS_SEND;
     }
     if (strstr(json, "\"response\":\"state updated\"") != NULL) {
 #if DEBUG
-    Serial.println("Status update RESPONSOR!");
+        Serial.println("Status update RESPONSE!");
 #endif
         return expectedResponse == RESPONSE_STATE_SEND;
+    }
+    if (strstr(json, "\"response\":\"calibration updated\"") != NULL) {
+#if DEBUG
+        Serial.println("Calibration update RESPONSE!");
+#endif
+        return expectedResponse == RESPONSE_CALIBRATION_SEND;
     }
     return false;
 }
@@ -1190,6 +1512,15 @@ void handleResponseRetry() {
 #endif
                     sendStateData();
                     break;
+                case RESPONSE_CALIBRATION_REQUEST: 
+                    sendCalibrationCommand();
+                    break;
+                case RESPONSE_CALIBRATION_SEND:
+#if DEBUG
+                    Serial.println("[DEBUG] Retrying calibration send");
+#endif
+                    sendCalibrationData();
+                    break;
                 default:
                     waitingForResponse = RESPONSE_NONE;
                     responseRetryCount = 0;
@@ -1354,7 +1685,7 @@ void handleUARTData() {
             if (dataIndex > 0) {
                 receivedData[dataIndex] = 0;
 #if DEBUG
-    Serial.println(receivedData);
+                Serial.println(receivedData);
 #endif                      
                 // Checking data for ACKs
                 if (waitingForResponse != RESPONSE_NONE) {
@@ -1365,8 +1696,12 @@ void handleUARTData() {
                         continue;
                     }
                 }
+                
+                // Try to parse different data types
                 if (parseSettingsJson(receivedData)) {
                     processSettingsData();
+                } else if (parseCalibrationJson(receivedData)) {
+                    processCalibrationData();
                 } else {
                     if (parseStatusJson(receivedData)) {
                         processParsedData();
@@ -1379,6 +1714,17 @@ void handleUARTData() {
         } else if (c != '\r' && dataIndex < 511) {
             receivedData[dataIndex++] = c;
         }
+    }
+}
+
+void processCalibrationData() {
+#if DEBUG
+    Serial.println("[DEBUG] Processing calibration data");
+    debugCalibrationData();
+#endif
+    if (waitingForResponse == RESPONSE_CALIBRATION_REQUEST) {
+        waitingForResponse = RESPONSE_NONE;
+        responseRetryCount = 0;
     }
 }
 
@@ -1665,6 +2011,9 @@ void setup() {
   server.on("/setband", HTTP_POST, handleSetBand);
   server.on("/setstate", HTTP_POST, handleSetState);
   server.on("/style.css", HTTP_GET, handleCSS);
+  server.on("/calibration", HTTP_GET, handleCalibrationPage);
+  server.on("/getcalibration", HTTP_GET, handleGetCalibration);
+  server.on("/savecalibration", HTTP_POST, handleSaveCalibration);
   Serial.println("HTTP server started");
 }
 
@@ -1713,5 +2062,5 @@ void loop() {
     server.handleClient();
   }
   
-  if (status.alarm) {lv_label_set_text(ui_alertReason, String(status.alert_reason).c_str()); lv_scr_load(ui_warning);}
+  //if (status.alarm) {lv_label_set_text(ui_alertReason, String(status.alert_reason).c_str()); lv_scr_load(ui_warning);}
 }

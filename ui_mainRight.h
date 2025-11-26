@@ -22,8 +22,9 @@ extern lv_obj_t *ui_Label46;
 extern lv_obj_t *ui_Label47;
 extern lv_obj_t *ui_Label48;
 extern lv_obj_t *ui_Label49;
-extern lv_obj_t *ui_Label50;
-extern lv_obj_t *ui_Label51;
+extern lv_obj_t *ui_ipADDR;
+extern lv_obj_t *ui_SSID;
+extern lv_obj_t *ui_uptime;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus
