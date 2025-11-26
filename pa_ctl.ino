@@ -892,7 +892,7 @@ void resetAlert(lv_event_t * e) {
     state.state = false;
     status.state = false;
     sendStateData();
-    delay(200);
+    lv_scr_load(ui_main);    
 }
 void mainRightLoaded(lv_event_t * e) {}
 
