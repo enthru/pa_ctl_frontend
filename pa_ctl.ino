@@ -121,6 +121,28 @@ void saveSettings(lv_event_t * e);
 int webWaitingForResponse = 0;
 const int WEB_RESPONSE_NONE = 0;
 
+void handleAlertStatus() {
+    String response = "{";
+    response += "\"alert_active\":" + String(status.alarm ? "true" : "false") + ",";
+    response += "\"alert_reason\":\"" + String(status.alert_reason) + "\"";
+    response += "}";
+    
+    server.send(200, "application/json", response);
+}
+
+void handleResetAlert() {
+    state.alarm = false;
+    status.alarm = false;
+    status.ptt = false;
+    state.ptt = false;
+    state.state = false;
+    status.state = false;
+    
+    sendStateData();
+    
+    server.send(200, "text/plain", "OK");
+}
+
 // main page
 void handleRoot() {
     String html = R"rawliteral(
@@ -195,6 +217,10 @@ function updateStatus() {
             const powerValue = data.fwd || 0;
             document.getElementById('pwr').textContent = powerValue + 'W';
             
+            if (data.alarm) {
+                showAlert(data.alert_reason);
+            }
+
             // progress bar maximum
             const powerPercent = Math.min(powerValue / 12, 100); // 1200W = 100%
             document.getElementById('pwrBar').style.width = powerPercent + '%';
@@ -242,7 +268,54 @@ function updateStatus() {
             
             setInterval(updateStatus, 500);
             updateStatus();
+
+            function showAlert(message) {
+                document.getElementById('alertMessage').textContent = message;
+                document.getElementById('alertOverlay').classList.add('alert-visible');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeAlert() {
+                document.getElementById('alertOverlay').classList.remove('alert-visible');
+                document.body.style.overflow = 'auto';
+                fetch('/resetalert', {
+                    method: 'POST'
+                }).then(response => {
+                    console.log('Alert reset command sent');
+                }).catch(error => {
+                    console.error('Error resetting alert:', error);
+                });
+            }
+
+            function checkAlertStatus() {
+                fetch('/alertstatus')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.alert_active) {
+                        showAlert(data.alert_reason);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking alert status:', error);
+                });
+            }
+
+            setInterval(checkAlertStatus, 500);
+            document.addEventListener('DOMContentLoaded', checkAlertStatus);
+
+            document.getElementById('alertOverlay').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    e.preventDefault();
+                }
+            });
         </script>
+        <div id="alertOverlay" class="alert-overlay">
+        <div class="alert-modal">
+            <div class="alert-title">⚠️ ALERT</div>
+            <div id="alertMessage" class="alert-message"></div>
+            <button class="alert-button" onclick="closeAlert()">Reset Alert</button>
+        </div>
+    </div>
     </body>
     </html>
     )rawliteral";
@@ -266,6 +339,8 @@ void handleStatus() {
     response += "\"plate_temp\":" + String(status.plate_temp, 1) + ",";
     response += "\"ptt\":" + String(status.ptt ? "true" : "false") + ",";
     response += "\"state\":" + String(status.state ? "true" : "false") + ",";
+    response += "\"alarm\":" + String(status.alarm ? "true" : "false") + ",";
+    response += "\"alert_reason\":\"" + String(status.alert_reason) + "\",";
     response += "\"band\":\"" + String(status.band) + "\"";
     response += "}";
     
@@ -325,7 +400,53 @@ void handleBandPage() {
                     document.getElementById('message').textContent = 'Error setting band';
                 });
             }
+            function showAlert(message) {
+                document.getElementById('alertMessage').textContent = message;
+                document.getElementById('alertOverlay').classList.add('alert-visible');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeAlert() {
+                document.getElementById('alertOverlay').classList.remove('alert-visible');
+                document.body.style.overflow = 'auto';
+                fetch('/resetalert', {
+                    method: 'POST'
+                }).then(response => {
+                    console.log('Alert reset command sent');
+                }).catch(error => {
+                    console.error('Error resetting alert:', error);
+                });
+            }
+
+            function checkAlertStatus() {
+                fetch('/alertstatus')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.alert_active) {
+                        showAlert(data.alert_reason);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking alert status:', error);
+                });
+            }
+
+            setInterval(checkAlertStatus, 500);
+            document.addEventListener('DOMContentLoaded', checkAlertStatus);
+
+            document.getElementById('alertOverlay').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    e.preventDefault();
+                }
+            });
         </script>
+        <div id="alertOverlay" class="alert-overlay">
+        <div class="alert-modal">
+            <div class="alert-title">⚠️ ALERT</div>
+            <div id="alertMessage" class="alert-message"></div>
+            <button class="alert-button" onclick="closeAlert()">Reset Alert</button>
+        </div>
+    </div>
     </body>
     </html>
     )rawliteral";
@@ -350,51 +471,51 @@ void handleCalibrationPage() {
                 <div class="settings-grid">
                     <div class="settings-item">
                         <label>Low Band FWD Coefficient:</label>
-                        <input type="number" id="low_fwd_coeff" name="low_fwd_coeff" step="0.0001" min="0" max="10" value="0">
+                        <input type="number" id="low_fwd_coeff" name="low_fwd_coeff" step="0.0001" min="1" max="1000" value="0">
                     </div>
                     <div class="settings-item">
                         <label>Low Band REV Coefficient:</label>
-                        <input type="number" id="low_rev_coeff" name="low_rev_coeff" step="0.0001" min="0" max="10" value="0">
+                        <input type="number" id="low_rev_coeff" name="low_rev_coeff" step="0.0001" min="1" max="1000" value="0">
                     </div>
                     <div class="settings-item">
                         <label>Low Band IFWD Coefficient:</label>
-                        <input type="number" id="low_ifwd_coeff" name="low_ifwd_coeff" step="0.0001" min="0" max="10" value="0">
+                        <input type="number" id="low_ifwd_coeff" name="low_ifwd_coeff" step="0.0001" min="1" max="1000" value="0">
                     </div>
                     <div class="settings-item">
                         <label>Mid Band FWD Coefficient:</label>
-                        <input type="number" id="mid_fwd_coeff" name="mid_fwd_coeff" step="0.0001" min="0" max="10" value="0">
+                        <input type="number" id="mid_fwd_coeff" name="mid_fwd_coeff" step="0.0001" min="1" max="1000" value="0">
                     </div>
                     <div class="settings-item">
                         <label>Mid Band REV Coefficient:</label>
-                        <input type="number" id="mid_rev_coeff" name="mid_rev_coeff" step="0.0001" min="0" max="10" value="0">
+                        <input type="number" id="mid_rev_coeff" name="mid_rev_coeff" step="0.0001" min="1" max="1000" value="0">
                     </div>
                     <div class="settings-item">
                         <label>Mid Band IFWD Coefficient:</label>
-                        <input type="number" id="mid_ifwd_coeff" name="mid_ifwd_coeff" step="0.0001" min="0" max="10" value="0">
+                        <input type="number" id="mid_ifwd_coeff" name="mid_ifwd_coeff" step="0.0001" min="1" max="1000" value="0">
                     </div>
                     <div class="settings-item">
                         <label>High Band FWD Coefficient:</label>
-                        <input type="number" id="high_fwd_coeff" name="high_fwd_coeff" step="0.0001" min="0" max="10" value="0">
+                        <input type="number" id="high_fwd_coeff" name="high_fwd_coeff" step="0.0001" min="1" max="1000" value="0">
                     </div>
                     <div class="settings-item">
                         <label>High Band REV Coefficient:</label>
-                        <input type="number" id="high_rev_coeff" name="high_rev_coeff" step="0.0001" min="0" max="10" value="0">
+                        <input type="number" id="high_rev_coeff" name="high_rev_coeff" step="0.0001" min="1" max="1000" value="0">
                     </div>
                     <div class="settings-item">
                         <label>High Band IFWD Coefficient:</label>
-                        <input type="number" id="high_ifwd_coeff" name="high_ifwd_coeff" step="0.0001" min="0" max="10" value="0">
+                        <input type="number" id="high_ifwd_coeff" name="high_ifwd_coeff" step="0.0001" min="1" max="1000" value="0">
                     </div>
                     <div class="settings-item">
                         <label>Voltage Coefficient:</label>
-                        <input type="number" id="voltage_coeff" name="voltage_coeff" step="0.0001" min="0" max="10" value="0">
+                        <input type="number" id="voltage_coeff" name="voltage_coeff" step="0.0001" min="1" max="100" value="0">
                     </div>
                     <div class="settings-item">
                         <label>Current Coefficient:</label>
-                        <input type="number" id="current_coeff" name="current_coeff" step="0.0001" min="0" max="10" value="0">
+                        <input type="number" id="current_coeff" name="current_coeff" step="0.0001" min="1" max="100" value="0">
                     </div>
                     <div class="settings-item">
                         <label>Reserve Coefficient:</label>
-                        <input type="number" id="rsrv_coeff" name="rsrv_coeff" step="0.0001" min="0" max="10" value="0">
+                        <input type="number" id="rsrv_coeff" name="rsrv_coeff" step="0.0001" min="1" max="1000" value="0">
                     </div>
                 </div>
                 <div class="navigation">
@@ -442,7 +563,53 @@ void handleCalibrationPage() {
             });
 
             setInterval(loadCalibration, 30000);
+            function showAlert(message) {
+                document.getElementById('alertMessage').textContent = message;
+                document.getElementById('alertOverlay').classList.add('alert-visible');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeAlert() {
+                document.getElementById('alertOverlay').classList.remove('alert-visible');
+                document.body.style.overflow = 'auto';
+                fetch('/resetalert', {
+                    method: 'POST'
+                }).then(response => {
+                    console.log('Alert reset command sent');
+                }).catch(error => {
+                    console.error('Error resetting alert:', error);
+                });
+            }
+
+            function checkAlertStatus() {
+                fetch('/alertstatus')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.alert_active) {
+                        showAlert(data.alert_reason);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking alert status:', error);
+                });
+            }
+
+            setInterval(checkAlertStatus, 500);
+            document.addEventListener('DOMContentLoaded', checkAlertStatus);
+
+            document.getElementById('alertOverlay').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    e.preventDefault();
+                }
+            });
         </script>
+        <div id="alertOverlay" class="alert-overlay">
+        <div class="alert-modal">
+            <div class="alert-title">⚠️ ALERT</div>
+            <div id="alertMessage" class="alert-message"></div>
+            <button class="alert-button" onclick="closeAlert()">Reset Alert</button>
+        </div>
+    </div>
     </body>
     </html>
     )rawliteral";
@@ -516,7 +683,7 @@ void handleSettingsPage() {
                 <div class="settings-grid">
                     <div class="settings-item">
                         <label>Max SWR:</label>
-                        <input type="number" id="max_swr" name="max_swr" step="0.1" min="1" max="10" value="0">
+                        <input type="number" id="max_swr" name="max_swr" step="0.1" min="1" max="4" value="0">
                     </div>
                     <div class="settings-item">
                         <label>Max Current (A):</label>
@@ -524,31 +691,31 @@ void handleSettingsPage() {
                     </div>
                     <div class="settings-item">
                         <label>Max Voltage (V):</label>
-                        <input type="number" id="max_voltage" name="max_voltage" step="0.1" min="1" max="50" value="0">
+                        <input type="number" id="max_voltage" name="max_voltage" step="0.1" min="1" max="60" value="0">
                     </div>
                     <div class="settings-item">
                         <label>Max Plate Temp (°C):</label>
-                        <input type="number" id="max_plate_temp" name="max_plate_temp" step="0.1" min="20" max="100" value="0">
+                        <input type="number" id="max_plate_temp" name="max_plate_temp" step="0.1" min="10" max="100" value="0">
                     </div>
                     <div class="settings-item">
                         <label>Max Water Temp (°C):</label>
-                        <input type="number" id="max_water_temp" name="max_water_temp" step="0.1" min="20" max="80" value="0">
+                        <input type="number" id="max_water_temp" name="max_water_temp" step="0.1" min="10" max="100" value="0">
                     </div>
                     <div class="settings-item">
                         <label>Max Pump Speed Temp (°C):</label>
-                        <input type="number" id="max_pump_speed_temp" name="max_pump_speed_temp" step="0.1" min="20" max="80" value="0">
+                        <input type="number" id="max_pump_speed_temp" name="max_pump_speed_temp" step="0.1" min="10" max="100" value="0">
                     </div>
                     <div class="settings-item">
                         <label>Min Pump Speed Temp (°C):</label>
-                        <input type="number" id="min_pump_speed_temp" name="min_pump_speed_temp" step="0.1" min="10" max="60" value="0">
+                        <input type="number" id="min_pump_speed_temp" name="min_pump_speed_temp" step="0.1" min="10" max="100" value="0">
                     </div>
                     <div class="settings-item">
                         <label>Max Fan Speed Temp (°C):</label>
-                        <input type="number" id="max_fan_speed_temp" name="max_fan_speed_temp" step="0.1" min="20" max="80" value="0">
+                        <input type="number" id="max_fan_speed_temp" name="max_fan_speed_temp" step="0.1" min="10" max="100" value="0">
                     </div>
                     <div class="settings-item">
                         <label>Min Fan Speed Temp (°C):</label>
-                        <input type="number" id="min_fan_speed_temp" name="min_fan_speed_temp" step="0.1" min="10" max="60" value="0">
+                        <input type="number" id="min_fan_speed_temp" name="min_fan_speed_temp" step="0.1" min="10" max="100" value="0">
                     </div>
                     <div class="settings-item">
                         <label>Maximum input power:</label>
@@ -639,7 +806,53 @@ void handleSettingsPage() {
             });
 
             setInterval(loadSettings, 30000);
+            function showAlert(message) {
+                document.getElementById('alertMessage').textContent = message;
+                document.getElementById('alertOverlay').classList.add('alert-visible');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeAlert() {
+                document.getElementById('alertOverlay').classList.remove('alert-visible');
+                document.body.style.overflow = 'auto';
+                fetch('/resetalert', {
+                    method: 'POST'
+                }).then(response => {
+                    console.log('Alert reset command sent');
+                }).catch(error => {
+                    console.error('Error resetting alert:', error);
+                });
+            }
+
+            function checkAlertStatus() {
+                fetch('/alertstatus')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.alert_active) {
+                        showAlert(data.alert_reason);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking alert status:', error);
+                });
+            }
+
+            setInterval(checkAlertStatus, 500);
+            document.addEventListener('DOMContentLoaded', checkAlertStatus);
+
+            document.getElementById('alertOverlay').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    e.preventDefault();
+                }
+            });
         </script>
+        <div id="alertOverlay" class="alert-overlay">
+        <div class="alert-modal">
+            <div class="alert-title">⚠️ ALERT</div>
+            <div id="alertMessage" class="alert-message"></div>
+            <button class="alert-button" onclick="closeAlert()">Reset Alert</button>
+        </div>
+    </div>
     </body>
     </html>
     )rawliteral";
@@ -666,7 +879,7 @@ void handleGetSettings() {
     response += "\"min_pump_speed_temp\":" + String(settings.min_pump_speed_temp, 2) + ",";
     response += "\"max_fan_speed_temp\":" + String(settings.max_fan_speed_temp, 2) + ",";
     response += "\"min_fan_speed_temp\":" + String(settings.min_fan_speed_temp, 2) + ",";
-    response += "\"max_input_power\":" + String(settings.max_input_power, 2) + ",";
+    response += "\"max_input_power\":" + String(settings.max_input_power) + ",";
     response += "\"protection_enabled\":" + String(status.protection_enabled ? "true" : "false") + ",";
     response += "\"autoband\":" + String(settings.autoband ? "true" : "false") + ",";
     response += "\"default_band\":\"" + String(settings.default_band) + "\"";
@@ -921,6 +1134,63 @@ void handleCSS() {
             grid-template-columns: 1fr;
         }
     }
+        .alert-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .alert-modal {
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        max-width: 400px;
+        width: 90%;
+        text-align: center;
+        border: 3px solid #ff4444;
+    }
+
+    .alert-title {
+        color: #ff4444;
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 15px;
+    }
+
+    .alert-message {
+        color: #333;
+        font-size: 16px;
+        margin-bottom: 25px;
+        line-height: 1.4;
+    }
+
+    .alert-button {
+        background: #ff4444;
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 6px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.3s ease;
+    }
+
+    .alert-button:hover {
+        background: #cc0000;
+    }
+
+    .alert-visible {
+        display: flex !important;
+    }
+    
     )rawliteral";
     
     server.send(200, "text/css", css);
@@ -1151,7 +1421,7 @@ bool requestAndWaitForSettings(unsigned long timeout) {
 }
 
 void toggleAutoBand(lv_event_t * e) {
-    settings.autoband = lv_obj_get_state(ui_protectionSwitch) & LV_STATE_CHECKED;
+    settings.autoband = lv_obj_get_state(ui_autoSelectSwitch) & LV_STATE_CHECKED;
     sendSettingsData();
 }
 
@@ -1174,7 +1444,7 @@ void saveSettings(lv_event_t * e) {
     settings.min_pump_speed_temp = lv_slider_get_value(ui_minPumpSpdTmpSlider);
     settings.max_fan_speed_temp = lv_slider_get_value(ui_maxFanSpdTmpSlider);
     settings.min_fan_speed_temp = lv_slider_get_value(ui_minFanSpdTmpSlider);
-    status.protection_enabled = lv_obj_get_state(ui_autoSelectSwitch) & LV_STATE_CHECKED;
+    status.protection_enabled = lv_obj_get_state(ui_protectionSwitch) & LV_STATE_CHECKED;
     lv_dropdown_get_selected_str(ui_defaultBandDropdown, settings.default_band, sizeof(settings.default_band));
 
 #if DEBUG
@@ -1625,7 +1895,7 @@ extern lv_obj_t* ui_bands;
 extern lv_obj_t* ui_mainRight;
 extern lv_obj_t* ui_warning;
 extern lv_obj_t* ui_protection2;
-extern lv_obj_t* ui_message;
+//extern lv_obj_t* ui_message;
 
 const char* getCurrentScreenName() {
     lv_obj_t* active = lv_scr_act();
@@ -1639,7 +1909,7 @@ const char* getCurrentScreenName() {
     if (active == ui_mainRight) return "mainRight";
     if (active == ui_warning) return "warning";
     if (active == ui_protection2) return "protection2";
-    if (active == ui_message) return "message";
+    //if (active == ui_message) return "message";
     
     return "none";
 }
@@ -2014,6 +2284,8 @@ void setup() {
   server.on("/calibration", HTTP_GET, handleCalibrationPage);
   server.on("/getcalibration", HTTP_GET, handleGetCalibration);
   server.on("/savecalibration", HTTP_POST, handleSaveCalibration);
+  server.on("/alertstatus", HTTP_GET, handleAlertStatus);
+  server.on("/resetalert", HTTP_POST, handleResetAlert);
   Serial.println("HTTP server started");
 }
 
