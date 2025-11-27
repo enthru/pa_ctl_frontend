@@ -34,6 +34,7 @@ const unsigned long WIFI_RECONNECT_INTERVAL = 10000;
 bool isConnecting = false;
 // handle to not start web before wi-fi connected
 bool serverStarted = false;
+bool otaStarted = false;
 unsigned long connectionStartTime = 0;
 const unsigned long CONNECTION_TIMEOUT = 10000;
 
@@ -2270,8 +2271,6 @@ void setup() {
   updateLVGLTextAreasWithSavedCredentials();
   
   connectToWiFi();
-  // CHANGE - setup OTA only if wi-fi connected
-  setupOTA();
   server.on("/", HTTP_GET, handleRoot);
   server.on("/status", HTTP_GET, handleStatus);
   server.on("/band", HTTP_GET, handleBandPage);
@@ -2306,6 +2305,12 @@ void loop() {
         Serial.println("HTTP server started");
       }
       
+      if (!otaStarted) {
+        setupOTA();
+        otaStarted = true;
+        Serial.println("OTA server started");
+      }
+
       isConnecting = false;
     } else if (currentTime - connectionStartTime > CONNECTION_TIMEOUT) {
       Serial.println("\nConnection timeout!");
@@ -2326,13 +2331,15 @@ void loop() {
   handleUARTData();
   handleResponseRetry();
   handleTestRequests();
-  // CHANGE check wi-fi connecnted before start
-  ArduinoOTA.handle();
-  
+
+  if (otaStarted) {
+    ArduinoOTA.handle();
+  }
+
   // Handle server only if it's started
   if (serverStarted) {
     server.handleClient();
   }
   
-  //if (status.alarm) {lv_label_set_text(ui_alertReason, String(status.alert_reason).c_str()); lv_scr_load(ui_warning);}
+  if (status.alarm) {lv_label_set_text(ui_alertReason, String(status.alert_reason).c_str()); lv_scr_load(ui_warning);}
 }
