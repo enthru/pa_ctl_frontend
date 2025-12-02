@@ -78,6 +78,8 @@ enum ResponseType {
   RESPONSE_CALIBRATION_SEND
 };
 
+String ResponseTypeString;
+
 ResponseType waitingForResponse = RESPONSE_NONE;
 unsigned long responseRequestTime = 0;
 int responseRetryCount = 0;
@@ -1476,14 +1478,15 @@ void saveSettings(lv_event_t * e) {
 }
 
 void resetAlert(lv_event_t * e) {
-    state.alarm = false;
-    status.alarm = false;
-    status.ptt = false;
-    state.ptt = false;
-    state.state = false;
-    status.state = false;
-    sendStateData();
-
+    if (status.alarm) {
+        state.alarm = false;
+        status.alarm = false;
+        status.ptt = false;
+        state.ptt = false;
+        state.state = false;
+        status.state = false;
+        sendStateData();
+    }
     lv_label_set_text(ui_alertReason, "Delaying...");
     delay(1000);
     lv_scr_load(ui_main);    
@@ -1788,27 +1791,32 @@ void handleResponseRetry() {
             switch (waitingForResponse) {
                 case RESPONSE_SETTINGS_REQUEST:
                     sendSettingsCommand();
+                    ResponseTypeString = "settings request";
                     break;
                 case RESPONSE_SETTINGS_SEND:
 #if DEBUG
                     Serial.println("[DEBUG] Retrying settings send");
 #endif
                     sendSettingsData();
+                    ResponseTypeString = "settings send";
                     break;
                 case RESPONSE_STATE_SEND:
 #if DEBUG
                     Serial.println("[DEBUG] Retrying state send");
 #endif
                     sendStateData();
+                    ResponseTypeString = "state send";
                     break;
                 case RESPONSE_CALIBRATION_REQUEST: 
                     sendCalibrationCommand();
+                    ResponseTypeString = "calibration request";
                     break;
                 case RESPONSE_CALIBRATION_SEND:
 #if DEBUG
                     Serial.println("[DEBUG] Retrying calibration send");
 #endif
                     sendCalibrationData();
+                    ResponseTypeString = "calibration send";
                     break;
                 default:
                     waitingForResponse = RESPONSE_NONE;
@@ -1819,6 +1827,8 @@ void handleResponseRetry() {
 #if DEBUG
             Serial.println("[DEBUG] Max retries reached, giving up");
 #endif
+            lv_label_set_text(ui_alertReason, ("Max retries for " + ResponseTypeString).c_str()); 
+            lv_scr_load(ui_warning);
             waitingForResponse = RESPONSE_NONE;
             responseRetryCount = 0;
         }
