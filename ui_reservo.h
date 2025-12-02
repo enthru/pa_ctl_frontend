@@ -3,16 +3,16 @@
 // LVGL version: 9.1.0
 // Project name: pa_ctl
 
-#ifndef UI_CALIBRATION_H
-#define UI_CALIBRATION_H
+#ifndef UI_RESERVO_H
+#define UI_RESERVO_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// SCREEN: ui_calibration
-extern void ui_calibration_screen_init(void);
-extern void ui_calibration_screen_destroy(void);
+// SCREEN: ui_reservo
+extern void ui_reservo_screen_init(void);
+extern void ui_reservo_screen_destroy(void);
 extern lv_obj_t *ui_reservo;
 extern void ui_event_Button13( lv_event_t * e);
 extern lv_obj_t *ui_Button13;

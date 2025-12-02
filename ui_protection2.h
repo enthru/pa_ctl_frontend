@@ -13,6 +13,7 @@ extern "C" {
 // SCREEN: ui_protection2
 extern void ui_protection2_screen_init(void);
 extern void ui_protection2_screen_destroy(void);
+extern void ui_event_protection2( lv_event_t * e);
 extern lv_obj_t *ui_protection2;
 extern lv_obj_t *ui_Label20;
 extern void ui_event_Button4( lv_event_t * e);
@@ -40,6 +41,10 @@ extern lv_obj_t *ui_minPumpSpeedTmp;
 extern lv_obj_t *ui_minFanSpeedTmp;
 extern lv_obj_t *ui_protectionSwitch;
 extern lv_obj_t *ui_Label52;
+extern void ui_event_minCoeffSlider( lv_event_t * e);
+extern lv_obj_t *ui_minCoeffSlider;
+extern lv_obj_t *ui_Label11;
+extern lv_obj_t *ui_minCoeff;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus

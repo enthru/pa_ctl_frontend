@@ -5,7 +5,7 @@
 
 #include "ui.h"
 
-lv_obj_t *ui_mainLeft = NULL;lv_obj_t *ui_Chart1 = NULL;lv_obj_t *ui_Chart1_Xaxis = NULL;lv_obj_t *ui_Chart1_Yaxis1 = NULL;lv_obj_t *ui_Chart1_Yaxis2 = NULL;
+lv_obj_t *ui_mainLeft = NULL;lv_obj_t *ui_Chart1 = NULL;lv_obj_t *ui_Chart1_Xaxis = NULL;lv_obj_t *ui_Chart1_Yaxis1 = NULL;lv_obj_t *ui_Chart1_Yaxis2 = NULL;lv_obj_t *ui_Label42 = NULL;
 // event funtions
 void ui_event_mainLeft( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -71,12 +71,20 @@ lv_obj_set_style_length( ui_Chart1_Yaxis2, 10, LV_PART_INDICATOR ); //major tick
 lv_scale_set_total_tick_count( ui_Chart1_Yaxis2, (5 > 0 ? 5-1 : 0) * 2 + 1 );
 lv_scale_set_major_tick_every( ui_Chart1_Yaxis2, 2 >= 1 ? 2 : 1 );
 lv_chart_series_t* ui_Chart1_series_1 = lv_chart_add_series(ui_Chart1, lv_color_hex(0x808080), LV_CHART_AXIS_PRIMARY_Y);
-static lv_coord_t ui_Chart1_series_1_array[] = { 0,10,20,40,80,80 };
+static lv_coord_t ui_Chart1_series_1_array[] = { 0,10,20,40,40,40,40,40,40,40 };
 lv_chart_set_ext_y_array(ui_Chart1, ui_Chart1_series_1, ui_Chart1_series_1_array);
 
 //This workaround (an invisible outline) is needed because without it chart overflow-visible doesn't work in LVGL-9.1
 lv_obj_set_style_outline_pad( ui_Chart1, LV_MAX3(50, 50, 25), LV_PART_MAIN | LV_STATE_DEFAULT ); //workaround for ineffective 'overflow visible' flag
 lv_obj_set_style_outline_width( ui_Chart1, -1, LV_PART_MAIN | LV_STATE_DEFAULT );
+ui_Label42 = lv_label_create(ui_mainLeft);
+lv_obj_set_width( ui_Label42, LV_SIZE_CONTENT);  /// 1
+lv_obj_set_height( ui_Label42, LV_SIZE_CONTENT);   /// 1
+lv_obj_set_x( ui_Label42, -117 );
+lv_obj_set_y( ui_Label42, -117 );
+lv_obj_set_align( ui_Label42, LV_ALIGN_CENTER );
+lv_label_set_text(ui_Label42,"Look at this graph!!!11");
+
 lv_obj_add_event_cb(ui_mainLeft, ui_event_mainLeft, LV_EVENT_ALL, NULL);
 
 }
@@ -88,5 +96,6 @@ void ui_mainLeft_screen_destroy(void)
 // NULL screen variables
 ui_mainLeft= NULL;
 ui_Chart1= NULL;
+ui_Label42= NULL;
 
 }

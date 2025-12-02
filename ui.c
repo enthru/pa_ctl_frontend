@@ -38,7 +38,7 @@ ui_bands_screen_init();
 ui_mainRight_screen_init();
 ui_warning_screen_init();
 ui_protection2_screen_init();
-//ui_reservo_screen_init();
+ui_reservo_screen_init();
 ui____initial_actions0 = lv_obj_create(NULL);
 lv_disp_load_scr( ui_main);
 }
@@ -53,5 +53,5 @@ ui_bands_screen_destroy();
 ui_mainRight_screen_destroy();
 ui_warning_screen_destroy();
 ui_protection2_screen_destroy();
-//ui_reservo_screen_destroy();
+ui_reservo_screen_destroy();
 }

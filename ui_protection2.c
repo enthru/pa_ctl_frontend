@@ -5,13 +5,22 @@
 
 #include "ui.h"
 
-lv_obj_t *ui_protection2 = NULL;lv_obj_t *ui_Label20 = NULL;lv_obj_t *ui_Button4 = NULL;lv_obj_t *ui_Label21 = NULL;lv_obj_t *ui_Button7 = NULL;lv_obj_t *ui_Label29 = NULL;lv_obj_t *ui_maxPumpSpdTmpSlider = NULL;lv_obj_t *ui_Label39 = NULL;lv_obj_t *ui_minPumpSpdTmpSlider = NULL;lv_obj_t *ui_Label53 = NULL;lv_obj_t *ui_maxFanSpdTmpSlider = NULL;lv_obj_t *ui_Label54 = NULL;lv_obj_t *ui_minFanSpdTmpSlider = NULL;lv_obj_t *ui_Label55 = NULL;lv_obj_t *ui_defaultBandDropdown = NULL;lv_obj_t *ui_maxPumpSpeedTmp = NULL;lv_obj_t *ui_maxFanSpeedTmp = NULL;lv_obj_t *ui_minPumpSpeedTmp = NULL;lv_obj_t *ui_minFanSpeedTmp = NULL;lv_obj_t *ui_protectionSwitch = NULL;lv_obj_t *ui_Label52 = NULL;
+lv_obj_t *ui_protection2 = NULL;lv_obj_t *ui_Label20 = NULL;lv_obj_t *ui_Button4 = NULL;lv_obj_t *ui_Label21 = NULL;lv_obj_t *ui_Button7 = NULL;lv_obj_t *ui_Label29 = NULL;lv_obj_t *ui_maxPumpSpdTmpSlider = NULL;lv_obj_t *ui_Label39 = NULL;lv_obj_t *ui_minPumpSpdTmpSlider = NULL;lv_obj_t *ui_Label53 = NULL;lv_obj_t *ui_maxFanSpdTmpSlider = NULL;lv_obj_t *ui_Label54 = NULL;lv_obj_t *ui_minFanSpdTmpSlider = NULL;lv_obj_t *ui_Label55 = NULL;lv_obj_t *ui_defaultBandDropdown = NULL;lv_obj_t *ui_maxPumpSpeedTmp = NULL;lv_obj_t *ui_maxFanSpeedTmp = NULL;lv_obj_t *ui_minPumpSpeedTmp = NULL;lv_obj_t *ui_minFanSpeedTmp = NULL;lv_obj_t *ui_protectionSwitch = NULL;lv_obj_t *ui_Label52 = NULL;lv_obj_t *ui_minCoeffSlider = NULL;lv_obj_t *ui_Label11 = NULL;lv_obj_t *ui_minCoeff = NULL;
 // event funtions
+void ui_event_protection2( lv_event_t * e) {
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+if ( event_code == LV_EVENT_GESTURE &&  lv_indev_get_gesture_dir(lv_indev_active()) == LV_DIR_RIGHT  ) {
+lv_indev_wait_release(lv_indev_active());
+      _ui_screen_change( &ui_protection, LV_SCR_LOAD_ANIM_OUT_RIGHT, 500, 0, &ui_protection_screen_init);
+}
+}
+
 void ui_event_Button4( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);
 
 if ( event_code == LV_EVENT_CLICKED) {
-      _ui_screen_change( &ui_protection, LV_SCR_LOAD_ANIM_OUT_BOTTOM, 500, 0, &ui_protection_screen_init);
+      _ui_screen_change( &ui_protection, LV_SCR_LOAD_ANIM_OUT_RIGHT, 500, 0, &ui_protection_screen_init);
 }
 }
 
@@ -19,7 +28,7 @@ void ui_event_Button7( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);
 
 if ( event_code == LV_EVENT_CLICKED) {
-      _ui_screen_change( &ui_menu, LV_SCR_LOAD_ANIM_OUT_BOTTOM, 500, 0, &ui_menu_screen_init);
+      _ui_screen_change( &ui_main, LV_SCR_LOAD_ANIM_OUT_BOTTOM, 500, 0, &ui_main_screen_init);
 }
 if ( event_code == LV_EVENT_CLICKED) {
       saveSettings( e );
@@ -55,6 +64,14 @@ void ui_event_minFanSpdTmpSlider( lv_event_t * e) {
 
 if ( event_code == LV_EVENT_VALUE_CHANGED) {
       _ui_slider_set_text_value( ui_minFanSpeedTmp, target, "", "");
+}
+}
+
+void ui_event_minCoeffSlider( lv_event_t * e) {
+    lv_event_code_t event_code = lv_event_get_code(e);lv_obj_t * target = lv_event_get_target(e);
+
+if ( event_code == LV_EVENT_VALUE_CHANGED) {
+      _ui_slider_set_text_value( ui_minCoeff, target, "", "");
 }
 }
 
@@ -240,20 +257,49 @@ lv_label_set_text(ui_minFanSpeedTmp,"XX");
 lv_obj_set_style_text_font(ui_minFanSpeedTmp, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
 
 ui_protectionSwitch = lv_switch_create(ui_protection2);
-lv_obj_set_width( ui_protectionSwitch, 92);
+lv_obj_set_width( ui_protectionSwitch, 71);
 lv_obj_set_height( ui_protectionSwitch, 32);
-lv_obj_set_x( ui_protectionSwitch, 85 );
-lv_obj_set_y( ui_protectionSwitch, 27 );
+lv_obj_set_x( ui_protectionSwitch, 0 );
+lv_obj_set_y( ui_protectionSwitch, 94 );
 lv_obj_set_align( ui_protectionSwitch, LV_ALIGN_CENTER );
 
 ui_Label52 = lv_label_create(ui_protection2);
 lv_obj_set_width( ui_Label52, LV_SIZE_CONTENT);  /// 1
 lv_obj_set_height( ui_Label52, LV_SIZE_CONTENT);   /// 1
-lv_obj_set_x( ui_Label52, 87 );
-lv_obj_set_y( ui_Label52, -7 );
+lv_obj_set_x( ui_Label52, 8 );
+lv_obj_set_y( ui_Label52, 58 );
 lv_obj_set_align( ui_Label52, LV_ALIGN_CENTER );
 lv_label_set_text(ui_Label52,"Enable protection");
 lv_obj_set_style_text_font(ui_Label52, &lv_font_montserrat_16, LV_PART_MAIN| LV_STATE_DEFAULT);
+
+ui_minCoeffSlider = lv_slider_create(ui_protection2);
+lv_slider_set_value( ui_minCoeffSlider, 0, LV_ANIM_OFF);
+if (lv_slider_get_mode(ui_minCoeffSlider)==LV_SLIDER_MODE_RANGE ) lv_slider_set_left_value( ui_minCoeffSlider, 0, LV_ANIM_OFF);
+lv_obj_set_width( ui_minCoeffSlider, 150);
+lv_obj_set_height( ui_minCoeffSlider, 10);
+lv_obj_set_x( ui_minCoeffSlider, 75 );
+lv_obj_set_y( ui_minCoeffSlider, 10 );
+lv_obj_set_align( ui_minCoeffSlider, LV_ALIGN_CENTER );
+
+//Compensating for LVGL9.1 draw crash with bar/slider max value when top-padding is nonzero and right-padding is 0
+if (lv_obj_get_style_pad_top(ui_minCoeffSlider,LV_PART_MAIN) > 0) lv_obj_set_style_pad_right( ui_minCoeffSlider, lv_obj_get_style_pad_right(ui_minCoeffSlider,LV_PART_MAIN) + 1, LV_PART_MAIN );
+ui_Label11 = lv_label_create(ui_protection2);
+lv_obj_set_width( ui_Label11, LV_SIZE_CONTENT);  /// 1
+lv_obj_set_height( ui_Label11, LV_SIZE_CONTENT);   /// 1
+lv_obj_set_x( ui_Label11, 73 );
+lv_obj_set_y( ui_Label11, -15 );
+lv_obj_set_align( ui_Label11, LV_ALIGN_CENTER );
+lv_label_set_text(ui_Label11,"Min efficiency coeff");
+lv_obj_set_style_text_font(ui_Label11, &lv_font_montserrat_16, LV_PART_MAIN| LV_STATE_DEFAULT);
+
+ui_minCoeff = lv_label_create(ui_protection2);
+lv_obj_set_width( ui_minCoeff, LV_SIZE_CONTENT);  /// 1
+lv_obj_set_height( ui_minCoeff, LV_SIZE_CONTENT);   /// 1
+lv_obj_set_x( ui_minCoeff, 182 );
+lv_obj_set_y( ui_minCoeff, 5 );
+lv_obj_set_align( ui_minCoeff, LV_ALIGN_CENTER );
+lv_label_set_text(ui_minCoeff,"XX");
+lv_obj_set_style_text_font(ui_minCoeff, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
 
 lv_obj_add_event_cb(ui_Button4, ui_event_Button4, LV_EVENT_ALL, NULL);
 lv_obj_add_event_cb(ui_Button7, ui_event_Button7, LV_EVENT_ALL, NULL);
@@ -261,6 +307,8 @@ lv_obj_add_event_cb(ui_maxPumpSpdTmpSlider, ui_event_maxPumpSpdTmpSlider, LV_EVE
 lv_obj_add_event_cb(ui_minPumpSpdTmpSlider, ui_event_minPumpSpdTmpSlider, LV_EVENT_ALL, NULL);
 lv_obj_add_event_cb(ui_maxFanSpdTmpSlider, ui_event_maxFanSpdTmpSlider, LV_EVENT_ALL, NULL);
 lv_obj_add_event_cb(ui_minFanSpdTmpSlider, ui_event_minFanSpdTmpSlider, LV_EVENT_ALL, NULL);
+lv_obj_add_event_cb(ui_minCoeffSlider, ui_event_minCoeffSlider, LV_EVENT_ALL, NULL);
+lv_obj_add_event_cb(ui_protection2, ui_event_protection2, LV_EVENT_ALL, NULL);
 
 }
 
@@ -290,5 +338,8 @@ ui_minPumpSpeedTmp= NULL;
 ui_minFanSpeedTmp= NULL;
 ui_protectionSwitch= NULL;
 ui_Label52= NULL;
+ui_minCoeffSlider= NULL;
+ui_Label11= NULL;
+ui_minCoeff= NULL;
 
 }

@@ -19,6 +19,7 @@ extern lv_obj_t *ui_Chart1;
 extern lv_obj_t *ui_Chart1_Xaxis;
 extern lv_obj_t *ui_Chart1_Yaxis1;
 extern lv_obj_t *ui_Chart1_Yaxis2;
+extern lv_obj_t *ui_Label42;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus

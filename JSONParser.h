@@ -39,6 +39,7 @@ typedef struct {
     float max_fan_speed_temp;
     float min_fan_speed_temp;
     int   max_input_power;
+    int   min_coeff;
     bool autoband;
     char default_band[10];
 } SettingsData;

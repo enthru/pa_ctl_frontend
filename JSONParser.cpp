@@ -223,6 +223,7 @@ int parseSettingsJson(char* jsonString) {
     settings.max_fan_speed_temp = atof(getJsonValue(settingsObj, "max_fan_speed_temp"));
     settings.min_fan_speed_temp = atof(getJsonValue(settingsObj, "min_fan_speed_temp"));
     settings.max_input_power = atof(getJsonValue(settingsObj, "max_input_power"));
+    settings.min_coeff = atof(getJsonValue(settingsObj, "min_coeff"));
 
 
     char* autobandStr = getJsonValue(settingsObj, "autoband");
