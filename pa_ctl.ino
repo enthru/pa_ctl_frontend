@@ -69,6 +69,10 @@ int dataIndex = 0;
 unsigned long lastTestRequest = 0;
 const unsigned long TEST_REQUEST_INTERVAL = 3000;
 
+// Web alert
+String webErrorMessage = "";
+bool hasWebError = false;
+
 enum ResponseType {
   RESPONSE_NONE,
   RESPONSE_SETTINGS_REQUEST,
@@ -123,6 +127,29 @@ void saveSettings(lv_event_t * e);
 
 int webWaitingForResponse = 0;
 const int WEB_RESPONSE_NONE = 0;
+
+void handleCheckError() {
+    if (hasWebError) {
+        String response = "{";
+        response += "\"has_error\":true,";
+        response += "\"error_message\":\"" + webErrorMessage + "\"";
+        response += "}";
+        
+        server.send(200, "application/json", response);
+
+        hasWebError = false;
+        webErrorMessage = "";
+    } else {
+        String response = "{\"has_error\":false}";
+        server.send(200, "application/json", response);
+    }
+}
+
+void handleResetError() {
+    hasWebError = false;
+    webErrorMessage = "";
+    server.send(200, "text/plain", "OK");
+}
 
 void handleAlertStatus() {
     String response = "{";
@@ -212,44 +239,71 @@ void handleRoot() {
             </div>
         </div>
         <script>
-function updateStatus() {
-    fetch('/status')
-        .then(response => response.json())
-        .then(data => {
-            // progress bar
-            const powerValue = data.fwd || 0;
-            document.getElementById('pwr').textContent = powerValue + 'W';
-            
-            if (data.alarm) {
-                showAlert(data.alert_reason);
+            function checkRetryError() {
+                fetch('/checkerror')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.has_error) {
+                            showAlert("Communication Error: " + data.error_message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error checking retry errors:', error);
+                    });
+            }
+            setInterval(checkRetryError, 500);
+            document.addEventListener('DOMContentLoaded', checkRetryError);
+
+            function closeError() {
+                document.getElementById('alertOverlay').classList.remove('alert-visible');
+                document.body.style.overflow = 'auto';
+                fetch('/reseterror', {
+                method: 'POST'
+                }).then(response => {
+                    console.log('Error reset command sent');
+                }).catch(error => {
+                    console.error('Error resetting error:', error);
+                });
             }
 
-            // progress bar maximum
-            const powerPercent = Math.min(powerValue / 12, 100); // 1200W = 100%
-            document.getElementById('pwrBar').style.width = powerPercent + '%';
+            function updateStatus() {
+                fetch('/status')
+                    .then(response => response.json())
+                    .then(data => {
+                        // progress bar
+                        const powerValue = data.fwd || 0;
+                        document.getElementById('pwr').textContent = powerValue + 'W';
             
-            // updates
-            document.getElementById('swr').textContent = data.swr || 0;
-            document.getElementById('ref').textContent = (data.ref || 0) + 'W';
-            document.getElementById('vol').textContent = (data.voltage || 0).toFixed(1) + 'V';
-            document.getElementById('cur').textContent = (data.current || 0).toFixed(1) + 'A';
-            document.getElementById('waterTmp').textContent = (data.water_temp || 0).toFixed(1) + 'C';
-            document.getElementById('plateTmp').textContent = (data.plate_temp || 0).toFixed(1) + 'C';
-            document.getElementById('band').textContent = data.band || '-';
-            document.getElementById('ptt').textContent = data.ptt ? 'ON' : 'OFF';
+                        if (data.alarm) {
+                            showAlert(data.alert_reason);
+                        }
+
+                        // progress bar maximum
+                        const powerPercent = Math.min(powerValue / 12, 100); // 1200W = 100%
+                        document.getElementById('pwrBar').style.width = powerPercent + '%';
             
-            const stateToggle = document.getElementById('stateToggle');
-            stateToggle.checked = data.state || false;
+                        // updates
+                        document.getElementById('swr').textContent = data.swr || 0;
+                        document.getElementById('ref').textContent = (data.ref || 0) + 'W';
+                        document.getElementById('vol').textContent = (data.voltage || 0).toFixed(1) + 'V';
+                        document.getElementById('cur').textContent = (data.current || 0).toFixed(1) + 'A';
+                        document.getElementById('waterTmp').textContent = (data.water_temp || 0).toFixed(1) + 'C';
+                        document.getElementById('plateTmp').textContent = (data.plate_temp || 0).toFixed(1) + 'C';
+                        document.getElementById('band').textContent = data.band || '-';
+                        document.getElementById('ptt').textContent = data.ptt ? 'ON' : 'OFF';
             
-            // red color while PTT
-            const pwrBar = document.getElementById('pwrBar');
-            if(data.ptt) {
-                pwrBar.style.backgroundColor = '#FF0000';
-            } else {
-                pwrBar.style.backgroundColor = '#007AFF';
+                        const stateToggle = document.getElementById('stateToggle');
+                        stateToggle.checked = data.state || false;
+            
+                        // red color while PTT
+                        const pwrBar = document.getElementById('pwrBar');
+                        if(data.ptt) {
+                            pwrBar.style.backgroundColor = '#FF0000';
+                        } else {
+                            pwrBar.style.backgroundColor = '#007AFF';
+                        }
+                });
             }
-        });
-}
             
             document.getElementById('stateToggle').addEventListener('change', function() {
                 const newState = this.checked;
@@ -272,10 +326,23 @@ function updateStatus() {
             setInterval(updateStatus, 500);
             updateStatus();
 
-            function showAlert(message) {
+            function showAlert(message, isError = false) {
                 document.getElementById('alertMessage').textContent = message;
+    
+                if (isError) {
+                    const alertModal = document.querySelector('.alert-modal');
+                    alertModal.style.borderColor = '#FF4444';
+                    const alertTitle = document.querySelector('.alert-title');
+                    alertTitle.textContent = 'ERROR';
+                }
+    
                 document.getElementById('alertOverlay').classList.add('alert-visible');
                 document.body.style.overflow = 'hidden';
+            }
+
+
+            if (data.has_error) {
+                showAlert("Communication Error: " + data.error_message, true);
             }
 
             function closeAlert() {
@@ -382,6 +449,33 @@ void handleBandPage() {
             </div>
         </div>
         <script>
+            function checkRetryError() {
+                fetch('/checkerror')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.has_error) {
+                            showAlert("Communication Error: " + data.error_message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error checking retry errors:', error);
+                    });
+            }
+            setInterval(checkRetryError, 500);
+            document.addEventListener('DOMContentLoaded', checkRetryError);
+
+            function closeError() {
+                document.getElementById('alertOverlay').classList.remove('alert-visible');
+                document.body.style.overflow = 'auto';
+                fetch('/reseterror', {
+                method: 'POST'
+                }).then(response => {
+                    console.log('Error reset command sent');
+                }).catch(error => {
+                    console.error('Error resetting error:', error);
+                });
+            }
+
             function setBand(band) {
                 fetch('/setband', {
                     method: 'POST',
@@ -403,10 +497,23 @@ void handleBandPage() {
                     document.getElementById('message').textContent = 'Error setting band';
                 });
             }
-            function showAlert(message) {
+            function showAlert(message, isError = false) {
                 document.getElementById('alertMessage').textContent = message;
+    
+                if (isError) {
+                    const alertModal = document.querySelector('.alert-modal');
+                    alertModal.style.borderColor = '#FF4444';
+                    const alertTitle = document.querySelector('.alert-title');
+                    alertTitle.textContent = 'ERROR';
+                }
+    
                 document.getElementById('alertOverlay').classList.add('alert-visible');
                 document.body.style.overflow = 'hidden';
+            }
+
+
+            if (data.has_error) {
+                showAlert("Communication Error: " + data.error_message, true);
             }
 
             function closeAlert() {
@@ -529,6 +636,33 @@ void handleCalibrationPage() {
             </form>
         </div>
         <script>
+            function checkRetryError() {
+                fetch('/checkerror')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.has_error) {
+                            showAlert("Communication Error: " + data.error_message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error checking retry errors:', error);
+                    });
+            }
+            setInterval(checkRetryError, 500);
+            document.addEventListener('DOMContentLoaded', checkRetryError);
+
+            function closeError() {
+                document.getElementById('alertOverlay').classList.remove('alert-visible');
+                document.body.style.overflow = 'auto';
+                fetch('/reseterror', {
+                method: 'POST'
+                }).then(response => {
+                    console.log('Error reset command sent');
+                }).catch(error => {
+                    console.error('Error resetting error:', error);
+                });
+            }
+
             function loadCalibration() {
                 fetch('/getcalibration')
                     .then(response => {
@@ -566,10 +700,24 @@ void handleCalibrationPage() {
             });
 
             setInterval(loadCalibration, 30000);
-            function showAlert(message) {
+
+            function showAlert(message, isError = false) {
                 document.getElementById('alertMessage').textContent = message;
+    
+                if (isError) {
+                    const alertModal = document.querySelector('.alert-modal');
+                    alertModal.style.borderColor = '#FF4444';
+                    const alertTitle = document.querySelector('.alert-title');
+                    alertTitle.textContent = 'ERROR';
+                }
+    
                 document.getElementById('alertOverlay').classList.add('alert-visible');
                 document.body.style.overflow = 'hidden';
+            }
+
+
+            if (data.has_error) {
+                showAlert("Communication Error: " + data.error_message, true);
             }
 
             function closeAlert() {
@@ -767,6 +915,33 @@ void handleSettingsPage() {
             </form>
         </div>
         <script>
+            function checkRetryError() {
+                fetch('/checkerror')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.has_error) {
+                            showAlert("Communication Error: " + data.error_message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error checking retry errors:', error);
+                    });
+            }
+            setInterval(checkRetryError, 500);
+            document.addEventListener('DOMContentLoaded', checkRetryError);
+
+            function closeError() {
+                document.getElementById('alertOverlay').classList.remove('alert-visible');
+                document.body.style.overflow = 'auto';
+                fetch('/reseterror', {
+                method: 'POST'
+                }).then(response => {
+                    console.log('Error reset command sent');
+                }).catch(error => {
+                    console.error('Error resetting error:', error);
+                });
+            }
+
             function loadSettings() {
                 fetch('/getsettings')
                     .then(response => {
@@ -814,10 +989,24 @@ void handleSettingsPage() {
             });
 
             setInterval(loadSettings, 30000);
-            function showAlert(message) {
+
+            function showAlert(message, isError = false) {
                 document.getElementById('alertMessage').textContent = message;
+    
+                if (isError) {
+                    const alertModal = document.querySelector('.alert-modal');
+                    alertModal.style.borderColor = '#FF4444';
+                    const alertTitle = document.querySelector('.alert-title');
+                    alertTitle.textContent = 'ERROR';
+                }
+    
                 document.getElementById('alertOverlay').classList.add('alert-visible');
                 document.body.style.overflow = 'hidden';
+            }
+
+
+            if (data.has_error) {
+                showAlert("Communication Error: " + data.error_message, true);
             }
 
             function closeAlert() {
@@ -1173,6 +1362,15 @@ void handleCSS() {
         font-size: 24px;
         font-weight: bold;
         margin-bottom: 15px;
+    }
+
+    .alert-modal.error {
+        border-color: #FF0000;
+        background: #FFEEEE;
+    }
+
+    .alert-modal.error .alert-title {
+        color: #FF0000;
     }
 
     .alert-message {
@@ -1827,6 +2025,8 @@ void handleResponseRetry() {
 #if DEBUG
             Serial.println("[DEBUG] Max retries reached, giving up");
 #endif
+            webErrorMessage = "Max retries (" + String(MAX_RETRIES) + ") reached for " + ResponseTypeString;
+            hasWebError = true;
             lv_label_set_text(ui_alertReason, ("Max retries for " + ResponseTypeString).c_str()); 
             lv_scr_load(ui_warning);
             waitingForResponse = RESPONSE_NONE;
@@ -2313,6 +2513,8 @@ void setup() {
   server.on("/savecalibration", HTTP_POST, handleSaveCalibration);
   server.on("/alertstatus", HTTP_GET, handleAlertStatus);
   server.on("/resetalert", HTTP_POST, handleResetAlert);
+  server.on("/checkerror", HTTP_GET, handleCheckError);
+  server.on("/reseterror", HTTP_POST, handleResetError);
   Serial.println("HTTP server started");
 }
 
