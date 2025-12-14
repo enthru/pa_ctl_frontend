@@ -408,7 +408,7 @@ void handleRoot() {
         </script>
         <div id="alertOverlay" class="alert-overlay">
         <div class="alert-modal">
-            <div class="alert-title">⚠️ ALERT</div>
+            <div class="alert-title">ALERT</div>
             <div id="alertMessage" class="alert-message"></div>
             <button class="alert-button" onclick="closeAlert()">Reset Alert</button>
         </div>
@@ -545,7 +545,7 @@ void handleBandPage() {
                     alertButton.addEventListener('click', closeError);
                 } else {
                     alertModal.style.borderColor = '#FFA500';
-                    alertTitle.textContent = '⚠️ ALERT';
+                    alertTitle.textContent = 'ALERT';
                     alertTitle.style.color = '#FFA500';
                     alertButton.textContent = 'Reset Alert';
                     alertButton.onclick = closeAlert;
@@ -611,7 +611,7 @@ void handleBandPage() {
         </script>
         <div id="alertOverlay" class="alert-overlay">
         <div class="alert-modal">
-            <div class="alert-title">⚠️ ALERT</div>
+            <div class="alert-title">ALERT</div>
             <div id="alertMessage" class="alert-message"></div>
             <button class="alert-button" onclick="closeAlert()">Reset Alert</button>
         </div>
@@ -780,7 +780,7 @@ void handleCalibrationPage() {
                     alertButton.addEventListener('click', closeError);
                 } else {
                     alertModal.style.borderColor = '#FFA500';
-                    alertTitle.textContent = '⚠️ ALERT';
+                    alertTitle.textContent = 'ALERT';
                     alertTitle.style.color = '#FFA500';
                     alertButton.textContent = 'Reset Alert';
                     alertButton.onclick = closeAlert;
@@ -847,7 +847,7 @@ void handleCalibrationPage() {
         </script>
         <div id="alertOverlay" class="alert-overlay">
         <div class="alert-modal">
-            <div class="alert-title">⚠️ ALERT</div>
+            <div class="alert-title">ALERT</div>
             <div id="alertMessage" class="alert-message"></div>
             <button class="alert-button" onclick="closeAlert()">Reset Alert</button>
         </div>
@@ -1100,7 +1100,7 @@ void handleSettingsPage() {
                     alertButton.addEventListener('click', closeError);
                 } else {
                     alertModal.style.borderColor = '#FFA500';
-                    alertTitle.textContent = '⚠️ ALERT';
+                    alertTitle.textContent = 'ALERT';
                     alertTitle.style.color = '#FFA500';
                     alertButton.textContent = 'Reset Alert';
                     alertButton.onclick = closeAlert;
@@ -1167,7 +1167,7 @@ void handleSettingsPage() {
         </script>
         <div id="alertOverlay" class="alert-overlay">
         <div class="alert-modal">
-            <div class="alert-title">⚠️ ALERT</div>
+            <div class="alert-title">ALERT</div>
             <div id="alertMessage" class="alert-message"></div>
             <button class="alert-button" onclick="closeAlert()">Reset Alert</button>
         </div>
@@ -1695,6 +1695,7 @@ void sendCalibrationData() {
     Serial1.println(json);
     
     waitingForResponse = RESPONSE_CALIBRATION_SEND;
+    delay(1000);
     responseRequestTime = millis();
 }
 
