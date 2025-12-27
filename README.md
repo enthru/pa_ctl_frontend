@@ -4,8 +4,10 @@ The project in alfa state and still under development. <br>
 Looks like it requires some refactoring :)<br>
 <br>
 Few web screenshots:<br>
-![main page](https://enthru.net/wp-content/uploads/2025/11/2025-11-25-15.15.32.jpg)
-![setiings](https://enthru.net/wp-content/uploads/2025/11/2025-11-25-15.15.36.jpg)
+![main page](https://enthru.net/wp-content/uploads/2025/12/main_page.png)
+![setiings](https://enthru.net/wp-content/uploads/2025/12/settings_page.png)
+![calibration](https://enthru.net/wp-content/uploads/2025/12/calibration_page.png)
+![band](https://enthru.net/wp-content/uploads/2025/12/band_page.png)
 
 Few interface photos:<br>
 ![main screen](https://enthru.net/wp-content/uploads/2025/12/main.jpg)
