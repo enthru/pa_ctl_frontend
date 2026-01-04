@@ -175,6 +175,9 @@ int parseCalibrationJson(char* jsonString) {
     calibration.voltage_coeff = atof(getJsonValue(calibrationObj, "voltage_coeff"));
     calibration.current_coeff = atof(getJsonValue(calibrationObj, "current_coeff"));
     calibration.rsrv_coeff = atof(getJsonValue(calibrationObj, "rsrv_coeff"));
+    calibration.acs_zero = atof(getJsonValue(calibrationObj, "acs_zero"));
+    calibration.acs_sens = atof(getJsonValue(calibrationObj, "acs_sens"));
+
     
 #if DEBUG
     Serial.println("[DEBUG] Calibration parsing completed successfully");

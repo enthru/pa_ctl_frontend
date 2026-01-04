@@ -124,7 +124,7 @@ void toggleAutoBand(lv_event_t * e);
 void saveSettings(lv_event_t * e);
 
 //////////////////////////////////////////// WEB ////////////////////////////////////////////////////////
-
+/*
 void handleCheckError() {
     if (hasWebError) {
         String response = "{";
@@ -141,13 +141,14 @@ void handleCheckError() {
         server.send(200, "application/json", response);
     }
 }
+*/
 
 void handleResetError() {
     hasWebError = false;
     webErrorMessage = "";
     server.send(200, "text/plain", "OK");
 }
-
+/*
 void handleAlertStatus() {
     String response = "{";
     response += "\"alert_active\":" + String(status.alarm ? "true" : "false") + ",";
@@ -155,6 +156,25 @@ void handleAlertStatus() {
     response += "}";
     
     server.send(200, "application/json", response);
+}
+*/
+void handleEvents() {
+    String response = "{";
+
+    response += "\"alarm_active\":" + String(status.alarm ? "true" : "false") + ",";
+    response += "\"alert_reason\":\"" + String(status.alert_reason) + "\",";
+
+    response += "\"has_error\":" + String(hasWebError ? "true" : "false") + ",";
+    response += "\"error_message\":\"" + String(webErrorMessage) + "\"";
+
+    response += "}";
+
+    server.send(200, "application/json", response);
+
+    if (hasWebError) {
+        hasWebError = false;
+        webErrorMessage = "";
+    }
 }
 
 void handleResetAlert() {
@@ -236,32 +256,82 @@ void handleRoot() {
             </div>
         </div>
         <script>
-            function checkRetryError() {
-                fetch('/checkerror')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.has_error) {
-                            showAlert("Communication Error: " + data.error_message, 'error');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error checking retry errors:', error);
-                    });
-            }
-            setInterval(checkRetryError, 500);
-            document.addEventListener('DOMContentLoaded', checkRetryError);
 
-            function closeError() {
+            function closeAlert() {
                 document.getElementById('alertOverlay').classList.remove('alert-visible');
                 document.body.style.overflow = 'auto';
-                fetch('/reseterror', {
-                method: 'POST'
-                }).then(response => {
-                    console.log('Error reset command sent');
-                }).catch(error => {
-                    console.error('Error resetting error:', error);
+                fetch('/resetalert', { method: 'POST' }).catch(console.error);
+            }
+
+            function closeError() {
+                document.body.style.overflow = 'auto';
+                document.getElementById('alertOverlay').classList.remove('alert-visible');
+                fetch('/reseterror', { method: 'POST' }).catch(console.error);
+            }
+
+            function showAlert(message, alertType = 'alert') {
+                document.getElementById('alertMessage').textContent = message;
+
+                const alertModal = document.querySelector('.alert-modal');
+                const alertTitle = document.querySelector('.alert-title');
+                const alertButton = document.querySelector('.alert-button');
+                const overlay = document.getElementById('alertOverlay');
+
+                if (alertType === 'error') {
+                    alertModal.style.borderColor = '#FF4444';
+                    alertTitle.textContent = 'ERROR';
+                    alertTitle.style.color = '#FF4444';
+                    alertButton.textContent = 'Close Error';
+                    alertButton.style.backgroundColor = '#FF4444';
+                    alertButton.onclick = closeError;
+                } else {
+                    alertModal.style.borderColor = '#FFA500';
+                    alertTitle.textContent = 'ALERT';
+                    alertTitle.style.color = '#FFA500';
+                    alertButton.textContent = 'Reset Alert';
+                    alertButton.style.backgroundColor = '#FFA500';
+                    alertButton.onclick = closeAlert;
+                }
+
+                overlay.classList.add('alert-visible');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function hideAlert() {
+                const overlay = document.getElementById('alertOverlay');
+                overlay.classList.remove('alert-visible');
+                document.body.style.overflow = 'auto';
+            }
+
+            function pollEvents() {
+                fetch('/events')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.has_error) {
+                        showAlert("Communication Error: " + (data.error_message || ""), 'error');
+                        return;
+                    }
+
+                    if (data.alarm_active) {
+                        showAlert(data.alert_reason || "ALERT", 'alert');
+                    } else {
+                        hideAlert();
+                    }
+                })
+
+                .catch(err => {
+                    console.error('Events error:', err);
                 });
             }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                pollEvents();
+                setInterval(pollEvents, 500);
+            
+                document.getElementById('alertOverlay').addEventListener('click', function(e) {
+                    if (e.target === this) e.preventDefault();
+                });
+            });
 
             function updateStatus() {
                 fetch('/status')
@@ -270,10 +340,6 @@ void handleRoot() {
                         // progress bar
                         const powerValue = data.fwd || 0;
                         document.getElementById('pwr').textContent = powerValue + 'W';
-            
-                        if (data.alarm) {
-                            showAlert(data.alert_reason, 'alert');
-                        }
 
                         // progress bar maximum
                         const powerPercent = Math.min(powerValue / 12, 100); // 1200W = 100%
@@ -299,8 +365,8 @@ void handleRoot() {
                         } else {
                             pwrBar.style.backgroundColor = '#007AFF';
                         }
-                });
-            }
+                    });
+                }
             
             document.getElementById('stateToggle').addEventListener('change', function() {
                 const newState = this.checked;
@@ -322,89 +388,6 @@ void handleRoot() {
             
             setInterval(updateStatus, 500);
             updateStatus();
-
-            function showAlert(message, alertType = 'alert') {
-                document.getElementById('alertMessage').textContent = message;
-    
-                const alertModal = document.querySelector('.alert-modal');
-                const alertTitle = document.querySelector('.alert-title');
-                const alertButton = document.querySelector('.alert-button');
-                const overlay = document.getElementById('alertOverlay');
-    
-                if (alertType === 'error') {
-                    alertModal.style.borderColor = '#FF4444';
-                    alertTitle.textContent = 'ERROR';
-                    alertTitle.style.color = '#FF4444';
-                    alertButton.textContent = 'Close Error';
-                    alertButton.onclick = closeError; 
-                    alertButton.style.backgroundColor = '#FF4444';
-                    alertButton.removeEventListener('click', closeAlert);
-                    alertButton.addEventListener('click', closeError);
-                } else {
-                    alertModal.style.borderColor = '#FFA500';
-                    alertTitle.textContent = 'ALERT';
-                    alertTitle.style.color = '#FFA500';
-                    alertButton.textContent = 'Reset Alert';
-                    alertButton.onclick = closeAlert;
-                    alertButton.style.backgroundColor = '#FFA500';
-
-                    alertButton.removeEventListener('click', closeError);
-                    alertButton.addEventListener('click', closeAlert);
-                }
-
-                overlay.classList.add('alert-visible');
-                document.body.style.overflow = 'hidden';
-            }
-
-            function closeAlert() {
-                document.getElementById('alertOverlay').classList.remove('alert-visible');
-                document.body.style.overflow = 'auto';
-                fetch('/resetalert', {
-                    method: 'POST'
-                }).then(response => {
-                    console.log('Alert reset command sent');
-                }).catch(error => {
-                    console.error('Error resetting alert:', error);
-                });
-            }
-
-            function closeError() {
-                document.getElementById('alertOverlay').classList.remove('alert-visible');
-                document.body.style.overflow = 'auto';
-                fetch('/reseterror', {
-                    method: 'POST'
-                }).then(response => {
-                    console.log('Error reset command sent');
-                }).catch(error => {
-                    console.error('Error resetting error:', error);
-                });
-            }
-
-            if (data.has_error) {
-                showAlert("Communication Error: " + data.error_message, true);
-            }
-
-            function checkAlertStatus() {
-                fetch('/alertstatus')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.alert_active) {
-                        showAlert(data.alert_reason, 'alert');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error checking alert status:', error);
-                });
-            }
-
-            setInterval(checkAlertStatus, 500);
-            document.addEventListener('DOMContentLoaded', checkAlertStatus);
-
-            document.getElementById('alertOverlay').addEventListener('click', function(e) {
-                if (e.target === this) {
-                    e.preventDefault();
-                }
-            });
         </script>
         <div id="alertOverlay" class="alert-overlay">
         <div class="alert-modal">
@@ -476,32 +459,82 @@ void handleBandPage() {
             </div>
         </div>
         <script>
-            function checkRetryError() {
-                fetch('/checkerror')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.has_error) {
-                            showAlert("Communication Error: " + data.error_message, 'error');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error checking retry errors:', error);
-                    });
-            }
-            setInterval(checkRetryError, 500);
-            document.addEventListener('DOMContentLoaded', checkRetryError);
 
-            function closeError() {
+            function closeAlert() {
                 document.getElementById('alertOverlay').classList.remove('alert-visible');
                 document.body.style.overflow = 'auto';
-                fetch('/reseterror', {
-                method: 'POST'
-                }).then(response => {
-                    console.log('Error reset command sent');
-                }).catch(error => {
-                    console.error('Error resetting error:', error);
+                fetch('/resetalert', { method: 'POST' }).catch(console.error);
+            }
+
+            function closeError() {
+                document.body.style.overflow = 'auto';
+                document.getElementById('alertOverlay').classList.remove('alert-visible');
+                fetch('/reseterror', { method: 'POST' }).catch(console.error);
+            }
+
+            function showAlert(message, alertType = 'alert') {
+                document.getElementById('alertMessage').textContent = message;
+
+                const alertModal = document.querySelector('.alert-modal');
+                const alertTitle = document.querySelector('.alert-title');
+                const alertButton = document.querySelector('.alert-button');
+                const overlay = document.getElementById('alertOverlay');
+
+                if (alertType === 'error') {
+                    alertModal.style.borderColor = '#FF4444';
+                    alertTitle.textContent = 'ERROR';
+                    alertTitle.style.color = '#FF4444';
+                    alertButton.textContent = 'Close Error';
+                    alertButton.style.backgroundColor = '#FF4444';
+                    alertButton.onclick = closeError;
+                } else {
+                    alertModal.style.borderColor = '#FFA500';
+                    alertTitle.textContent = 'ALERT';
+                    alertTitle.style.color = '#FFA500';
+                    alertButton.textContent = 'Reset Alert';
+                    alertButton.style.backgroundColor = '#FFA500';
+                    alertButton.onclick = closeAlert;
+                }
+
+                overlay.classList.add('alert-visible');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function hideAlert() {
+                const overlay = document.getElementById('alertOverlay');
+                overlay.classList.remove('alert-visible');
+                document.body.style.overflow = 'auto';
+            }
+
+            function pollEvents() {
+                fetch('/events')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.has_error) {
+                        showAlert("Communication Error: " + (data.error_message || ""), 'error');
+                        return;
+                    }
+
+                    if (data.alarm_active) {
+                        showAlert(data.alert_reason || "ALERT", 'alert');
+                    } else {
+                        hideAlert();
+                    }
+                })
+
+                .catch(err => {
+                    console.error('Events error:', err);
                 });
             }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                pollEvents();
+                setInterval(pollEvents, 500);
+            
+                document.getElementById('alertOverlay').addEventListener('click', function(e) {
+                    if (e.target === this) e.preventDefault();
+                });
+            });
 
             function setBand(band) {
                 fetch('/setband', {
@@ -525,89 +558,6 @@ void handleBandPage() {
                 });
             }
 
-
-            function showAlert(message, alertType = 'alert') {
-                document.getElementById('alertMessage').textContent = message;
-    
-                const alertModal = document.querySelector('.alert-modal');
-                const alertTitle = document.querySelector('.alert-title');
-                const alertButton = document.querySelector('.alert-button');
-                const overlay = document.getElementById('alertOverlay');
-    
-                if (alertType === 'error') {
-                    alertModal.style.borderColor = '#FF4444';
-                    alertTitle.textContent = 'ERROR';
-                    alertTitle.style.color = '#FF4444';
-                    alertButton.textContent = 'Close Error';
-                    alertButton.onclick = closeError; 
-                    alertButton.style.backgroundColor = '#FF4444';
-                    alertButton.removeEventListener('click', closeAlert);
-                    alertButton.addEventListener('click', closeError);
-                } else {
-                    alertModal.style.borderColor = '#FFA500';
-                    alertTitle.textContent = 'ALERT';
-                    alertTitle.style.color = '#FFA500';
-                    alertButton.textContent = 'Reset Alert';
-                    alertButton.onclick = closeAlert;
-                    alertButton.style.backgroundColor = '#FFA500';
-
-                    alertButton.removeEventListener('click', closeError);
-                    alertButton.addEventListener('click', closeAlert);
-                }
-
-                overlay.classList.add('alert-visible');
-                document.body.style.overflow = 'hidden';
-            }
-
-            function closeAlert() {
-                document.getElementById('alertOverlay').classList.remove('alert-visible');
-                document.body.style.overflow = 'auto';
-                fetch('/resetalert', {
-                    method: 'POST'
-                }).then(response => {
-                    console.log('Alert reset command sent');
-                }).catch(error => {
-                    console.error('Error resetting alert:', error);
-                });
-            }
-
-            function closeError() {
-                document.getElementById('alertOverlay').classList.remove('alert-visible');
-                document.body.style.overflow = 'auto';
-                fetch('/reseterror', {
-                    method: 'POST'
-                }).then(response => {
-                    console.log('Error reset command sent');
-                }).catch(error => {
-                    console.error('Error resetting error:', error);
-                });
-            }
-
-            if (data.has_error) {
-                showAlert("Communication Error: " + data.error_message, true);
-            }
-
-            function checkAlertStatus() {
-                fetch('/alertstatus')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.alert_active) {
-                        showAlert(data.alert_reason, 'alert');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error checking alert status:', error);
-                });
-            }
-
-            setInterval(checkAlertStatus, 500);
-            document.addEventListener('DOMContentLoaded', checkAlertStatus);
-
-            document.getElementById('alertOverlay').addEventListener('click', function(e) {
-                if (e.target === this) {
-                    e.preventDefault();
-                }
-            });
         </script>
         <div id="alertOverlay" class="alert-overlay">
         <div class="alert-modal">
@@ -680,11 +630,19 @@ void handleCalibrationPage() {
                     </div>
                     <div class="settings-item">
                         <label>Current Coefficient:</label>
-                        <input type="number" id="current_coeff" name="current_coeff" step="0.0001" min="1" max="100" value="0">
+                        <input type="number" id="current_coeff" name="current_coeff" step="0.0001" min="0.1" max="100" value="0">
                     </div>
                     <div class="settings-item">
                         <label>Reserve Coefficient:</label>
                         <input type="number" id="rsrv_coeff" name="rsrv_coeff" step="0.0001" min="1" max="1000" value="0">
+                    </div>
+                    <div class="settings-item">
+                        <label>Current sensor zero voltage:</label>
+                        <input type="number" id="acs_zero" name="acs_zero" step="0.0001" min="0" max="10" value="0">
+                    </div>
+                    <div class="settings-item">
+                        <label>Current sensor sensivity:</label>
+                        <input type="number" id="acs_sens" name="acs_sens" step="0.0001" min="0" max="10" value="0">
                     </div>
                 </div>
                 <div class="navigation">
@@ -695,32 +653,82 @@ void handleCalibrationPage() {
             </form>
         </div>
         <script>
-            function checkRetryError() {
-                fetch('/checkerror')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.has_error) {
-                            showAlert("Communication Error: " + data.error_message, 'error');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error checking retry errors:', error);
-                    });
-            }
-            setInterval(checkRetryError, 500);
-            document.addEventListener('DOMContentLoaded', checkRetryError);
 
-            function closeError() {
+            function closeAlert() {
                 document.getElementById('alertOverlay').classList.remove('alert-visible');
                 document.body.style.overflow = 'auto';
-                fetch('/reseterror', {
-                method: 'POST'
-                }).then(response => {
-                    console.log('Error reset command sent');
-                }).catch(error => {
-                    console.error('Error resetting error:', error);
+                fetch('/resetalert', { method: 'POST' }).catch(console.error);
+            }
+
+            function closeError() {
+                document.body.style.overflow = 'auto';
+                document.getElementById('alertOverlay').classList.remove('alert-visible');
+                fetch('/reseterror', { method: 'POST' }).catch(console.error);
+            }
+
+            function showAlert(message, alertType = 'alert') {
+                document.getElementById('alertMessage').textContent = message;
+
+                const alertModal = document.querySelector('.alert-modal');
+                const alertTitle = document.querySelector('.alert-title');
+                const alertButton = document.querySelector('.alert-button');
+                const overlay = document.getElementById('alertOverlay');
+
+                if (alertType === 'error') {
+                    alertModal.style.borderColor = '#FF4444';
+                    alertTitle.textContent = 'ERROR';
+                    alertTitle.style.color = '#FF4444';
+                    alertButton.textContent = 'Close Error';
+                    alertButton.style.backgroundColor = '#FF4444';
+                    alertButton.onclick = closeError;
+                } else {
+                    alertModal.style.borderColor = '#FFA500';
+                    alertTitle.textContent = 'ALERT';
+                    alertTitle.style.color = '#FFA500';
+                    alertButton.textContent = 'Reset Alert';
+                    alertButton.style.backgroundColor = '#FFA500';
+                    alertButton.onclick = closeAlert;
+                }
+
+                overlay.classList.add('alert-visible');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function hideAlert() {
+                const overlay = document.getElementById('alertOverlay');
+                overlay.classList.remove('alert-visible');
+                document.body.style.overflow = 'auto';
+            }
+
+            function pollEvents() {
+                fetch('/events')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.has_error) {
+                        showAlert("Communication Error: " + (data.error_message || ""), 'error');
+                        return;
+                    }
+
+                    if (data.alarm_active) {
+                        showAlert(data.alert_reason || "ALERT", 'alert');
+                    } else {
+                        hideAlert();
+                    }
+                })
+
+                .catch(err => {
+                    console.error('Events error:', err);
                 });
             }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                pollEvents();
+                setInterval(pollEvents, 500);
+            
+                document.getElementById('alertOverlay').addEventListener('click', function(e) {
+                    if (e.target === this) e.preventDefault();
+                });
+            });
 
             function loadCalibration() {
                 fetch('/getcalibration')
@@ -743,6 +751,8 @@ void handleCalibrationPage() {
                         document.getElementById('voltage_coeff').value = data.voltage_coeff;
                         document.getElementById('current_coeff').value = data.current_coeff;
                         document.getElementById('rsrv_coeff').value = data.rsrv_coeff;
+                        document.getElementById('acs_zero').value = data.acs_zero;
+                        document.getElementById('acs_sens').value = data.acs_sens;
                         
                         console.log('Calibration loaded successfully');
                     })
@@ -758,92 +768,8 @@ void handleCalibrationPage() {
                 document.getElementById('message').textContent = 'Saving calibration...';
             });
 
-            setInterval(loadCalibration, 30000);
+            //setInterval(loadCalibration, 1000);
 
-
-            function showAlert(message, alertType = 'alert') {
-                document.getElementById('alertMessage').textContent = message;
-    
-                const alertModal = document.querySelector('.alert-modal');
-                const alertTitle = document.querySelector('.alert-title');
-                const alertButton = document.querySelector('.alert-button');
-                const overlay = document.getElementById('alertOverlay');
-    
-                if (alertType === 'error') {
-                    alertModal.style.borderColor = '#FF4444';
-                    alertTitle.textContent = 'ERROR';
-                    alertTitle.style.color = '#FF4444';
-                    alertButton.textContent = 'Close Error';
-                    alertButton.onclick = closeError; 
-                    alertButton.style.backgroundColor = '#FF4444';
-                    alertButton.removeEventListener('click', closeAlert);
-                    alertButton.addEventListener('click', closeError);
-                } else {
-                    alertModal.style.borderColor = '#FFA500';
-                    alertTitle.textContent = 'ALERT';
-                    alertTitle.style.color = '#FFA500';
-                    alertButton.textContent = 'Reset Alert';
-                    alertButton.onclick = closeAlert;
-                    alertButton.style.backgroundColor = '#FFA500';
-
-                    alertButton.removeEventListener('click', closeError);
-                    alertButton.addEventListener('click', closeAlert);
-                }
-
-                overlay.classList.add('alert-visible');
-                document.body.style.overflow = 'hidden';
-            }
-
-            function closeAlert() {
-                document.getElementById('alertOverlay').classList.remove('alert-visible');
-                document.body.style.overflow = 'auto';
-                fetch('/resetalert', {
-                    method: 'POST'
-                }).then(response => {
-                    console.log('Alert reset command sent');
-                }).catch(error => {
-                    console.error('Error resetting alert:', error);
-                });
-            }
-
-            function closeError() {
-                document.getElementById('alertOverlay').classList.remove('alert-visible');
-                document.body.style.overflow = 'auto';
-                fetch('/reseterror', {
-                    method: 'POST'
-                }).then(response => {
-                    console.log('Error reset command sent');
-                }).catch(error => {
-                    console.error('Error resetting error:', error);
-                });
-            }
-
-
-            if (data.has_error) {
-                showAlert("Communication Error: " + data.error_message, true);
-            }
-
-            function checkAlertStatus() {
-                fetch('/alertstatus')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.alert_active) {
-                        showAlert(data.alert_reason, 'alert');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error checking alert status:', error);
-                });
-            }
-
-            setInterval(checkAlertStatus, 500);
-            document.addEventListener('DOMContentLoaded', checkAlertStatus);
-
-            document.getElementById('alertOverlay').addEventListener('click', function(e) {
-                if (e.target === this) {
-                    e.preventDefault();
-                }
-            });
         </script>
         <div id="alertOverlay" class="alert-overlay">
         <div class="alert-modal">
@@ -877,7 +803,9 @@ void handleGetCalibration() {
     response += "\"high_ifwd_coeff\":" + String(calibration.high_ifwd_coeff, 4) + ",";
     response += "\"voltage_coeff\":" + String(calibration.voltage_coeff, 4) + ",";
     response += "\"current_coeff\":" + String(calibration.current_coeff, 4) + ",";
-    response += "\"rsrv_coeff\":" + String(calibration.rsrv_coeff, 4);
+    response += "\"rsrv_coeff\":" + String(calibration.rsrv_coeff, 4) + ",";
+    response += "\"acs_zero\":" + String(calibration.acs_zero, 4) + ",";
+    response += "\"acs_sens\":" + String(calibration.acs_sens, 4);
     response += "}";
     
     server.send(200, "application/json", response);
@@ -901,6 +829,8 @@ void handleSaveCalibration() {
     if (server.hasArg("voltage_coeff")) calibration.voltage_coeff = server.arg("voltage_coeff").toFloat();
     if (server.hasArg("current_coeff")) calibration.current_coeff = server.arg("current_coeff").toFloat();
     if (server.hasArg("rsrv_coeff")) calibration.rsrv_coeff = server.arg("rsrv_coeff").toFloat();
+    if (server.hasArg("acs_zero")) calibration.acs_zero = server.arg("acs_zero").toFloat();
+    if (server.hasArg("acs_sens")) calibration.acs_sens = server.arg("acs_sens").toFloat();
 
     // Send calibration data to device
     sendCalibrationData();
@@ -1006,32 +936,82 @@ void handleSettingsPage() {
             </form>
         </div>
         <script>
-            function checkRetryError() {
-                fetch('/checkerror')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.has_error) {
-                            showAlert("Communication Error: " + data.error_message, 'error');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error checking retry errors:', error);
-                    });
-            }
-            setInterval(checkRetryError, 500);
-            document.addEventListener('DOMContentLoaded', checkRetryError);
 
-            function closeError() {
+            function closeAlert() {
                 document.getElementById('alertOverlay').classList.remove('alert-visible');
                 document.body.style.overflow = 'auto';
-                fetch('/reseterror', {
-                method: 'POST'
-                }).then(response => {
-                    console.log('Error reset command sent');
-                }).catch(error => {
-                    console.error('Error resetting error:', error);
+                fetch('/resetalert', { method: 'POST' }).catch(console.error);
+            }
+
+            function closeError() {
+                document.body.style.overflow = 'auto';
+                document.getElementById('alertOverlay').classList.remove('alert-visible');
+                fetch('/reseterror', { method: 'POST' }).catch(console.error);
+            }
+
+            function showAlert(message, alertType = 'alert') {
+                document.getElementById('alertMessage').textContent = message;
+
+                const alertModal = document.querySelector('.alert-modal');
+                const alertTitle = document.querySelector('.alert-title');
+                const alertButton = document.querySelector('.alert-button');
+                const overlay = document.getElementById('alertOverlay');
+
+                if (alertType === 'error') {
+                    alertModal.style.borderColor = '#FF4444';
+                    alertTitle.textContent = 'ERROR';
+                    alertTitle.style.color = '#FF4444';
+                    alertButton.textContent = 'Close Error';
+                    alertButton.style.backgroundColor = '#FF4444';
+                    alertButton.onclick = closeError;
+                } else {
+                    alertModal.style.borderColor = '#FFA500';
+                    alertTitle.textContent = 'ALERT';
+                    alertTitle.style.color = '#FFA500';
+                    alertButton.textContent = 'Reset Alert';
+                    alertButton.style.backgroundColor = '#FFA500';
+                    alertButton.onclick = closeAlert;
+                }
+
+                overlay.classList.add('alert-visible');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function hideAlert() {
+                const overlay = document.getElementById('alertOverlay');
+                overlay.classList.remove('alert-visible');
+                document.body.style.overflow = 'auto';
+            }
+
+            function pollEvents() {
+                fetch('/events')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.has_error) {
+                        showAlert("Communication Error: " + (data.error_message || ""), 'error');
+                        return;
+                    }
+
+                    if (data.alarm_active) {
+                        showAlert(data.alert_reason || "ALERT", 'alert');
+                    } else {
+                        hideAlert();
+                    }
+                })
+
+                .catch(err => {
+                    console.error('Events error:', err);
                 });
             }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                pollEvents();
+                setInterval(pollEvents, 500);
+            
+                document.getElementById('alertOverlay').addEventListener('click', function(e) {
+                    if (e.target === this) e.preventDefault();
+                });
+            });
 
             function loadSettings() {
                 fetch('/getsettings')
@@ -1079,91 +1059,8 @@ void handleSettingsPage() {
                 document.getElementById('message').textContent = 'Saving settings...';
             });
 
-            setInterval(loadSettings, 30000);
+            //setInterval(loadSettings, 1000);
 
-            function showAlert(message, alertType = 'alert') {
-                document.getElementById('alertMessage').textContent = message;
-    
-                const alertModal = document.querySelector('.alert-modal');
-                const alertTitle = document.querySelector('.alert-title');
-                const alertButton = document.querySelector('.alert-button');
-                const overlay = document.getElementById('alertOverlay');
-    
-                if (alertType === 'error') {
-                    alertModal.style.borderColor = '#FF4444';
-                    alertTitle.textContent = 'ERROR';
-                    alertTitle.style.color = '#FF4444';
-                    alertButton.textContent = 'Close Error';
-                    alertButton.onclick = closeError; 
-                    alertButton.style.backgroundColor = '#FF4444';
-                    alertButton.removeEventListener('click', closeAlert);
-                    alertButton.addEventListener('click', closeError);
-                } else {
-                    alertModal.style.borderColor = '#FFA500';
-                    alertTitle.textContent = 'ALERT';
-                    alertTitle.style.color = '#FFA500';
-                    alertButton.textContent = 'Reset Alert';
-                    alertButton.onclick = closeAlert;
-                    alertButton.style.backgroundColor = '#FFA500';
-
-                    alertButton.removeEventListener('click', closeError);
-                    alertButton.addEventListener('click', closeAlert);
-                }
-
-                overlay.classList.add('alert-visible');
-                document.body.style.overflow = 'hidden';
-            }
-
-            function closeAlert() {
-                document.getElementById('alertOverlay').classList.remove('alert-visible');
-                document.body.style.overflow = 'auto';
-                fetch('/resetalert', {
-                    method: 'POST'
-                }).then(response => {
-                    console.log('Alert reset command sent');
-                }).catch(error => {
-                    console.error('Error resetting alert:', error);
-                });
-            }
-
-            function closeError() {
-                document.getElementById('alertOverlay').classList.remove('alert-visible');
-                document.body.style.overflow = 'auto';
-                fetch('/reseterror', {
-                    method: 'POST'
-                }).then(response => {
-                    console.log('Error reset command sent');
-                }).catch(error => {
-                    console.error('Error resetting error:', error);
-                });
-            }
-
-
-            if (data.has_error) {
-                showAlert("Communication Error: " + data.error_message, true);
-            }
-
-            function checkAlertStatus() {
-                fetch('/alertstatus')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.alert_active) {
-                        showAlert(data.alert_reason, 'alert');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error checking alert status:', error);
-                });
-            }
-
-            setInterval(checkAlertStatus, 500);
-            document.addEventListener('DOMContentLoaded', checkAlertStatus);
-
-            document.getElementById('alertOverlay').addEventListener('click', function(e) {
-                if (e.target === this) {
-                    e.preventDefault();
-                }
-            });
         </script>
         <div id="alertOverlay" class="alert-overlay">
         <div class="alert-modal">
@@ -1673,7 +1570,9 @@ void sendCalibrationData() {
         "\"high_ifwd_coeff\":%.4f,"
         "\"voltage_coeff\":%.4f,"
         "\"current_coeff\":%.4f,"
-        "\"rsrv_coeff\":%.4f}}",
+        "\"rsrv_coeff\":%.4f,"
+        "\"acs_zero\":%.4f,"
+        "\"acs_sens\":%.4f}}",
         calibration.low_fwd_coeff,
         calibration.low_rev_coeff,
         calibration.low_ifwd_coeff,
@@ -1685,7 +1584,9 @@ void sendCalibrationData() {
         calibration.high_ifwd_coeff,
         calibration.voltage_coeff,
         calibration.current_coeff,
-        calibration.rsrv_coeff
+        calibration.rsrv_coeff,
+        calibration.acs_zero,
+        calibration.acs_sens
     );
 
 #if DEBUG
@@ -1714,6 +1615,8 @@ void debugCalibrationData() {
     Serial.print("Voltage Coeff: "); Serial.println(calibration.voltage_coeff, 4);
     Serial.print("Current Coeff: "); Serial.println(calibration.current_coeff, 4);
     Serial.print("Reserve Coeff: "); Serial.println(calibration.rsrv_coeff, 4);
+    Serial.print("ACS zero: "); Serial.println(calibration.acs_zero, 4);
+    Serial.print("ACS sens: "); Serial.println(calibration.acs_sens, 4);
     Serial.println("=======================");
 }
 
@@ -2209,6 +2112,8 @@ void processParsedData() {
         lv_label_set_text(ui_current, (String(status.current, 1) + "A").c_str());
         lv_label_set_text(ui_waterTmp, (String(status.water_temp, 1) + "C").c_str());
         lv_label_set_text(ui_plateTmp, (String(status.plate_temp, 1) + "C").c_str());
+        lv_label_set_text(ui_pumpSTxt, (String(status.pwm_pump) + "%").c_str());
+        lv_label_set_text(ui_fanSTxt, (String(status.pwm_cooler) + "%").c_str());
         set_switch_state(ui_mainSwitch, status.state);
         lv_label_set_text(ui_Label2, String(status.band).c_str());
         strncpy(state.band, status.band, sizeof(state.band) - 1);
@@ -2634,10 +2539,11 @@ void setup() {
   server.on("/calibration", HTTP_GET, handleCalibrationPage);
   server.on("/getcalibration", HTTP_GET, handleGetCalibration);
   server.on("/savecalibration", HTTP_POST, handleSaveCalibration);
-  server.on("/alertstatus", HTTP_GET, handleAlertStatus);
+  //server.on("/alertstatus", HTTP_GET, handleAlertStatus);
   server.on("/resetalert", HTTP_POST, handleResetAlert);
-  server.on("/checkerror", HTTP_GET, handleCheckError);
+  //server.on("/checkerror", HTTP_GET, handleCheckError);
   server.on("/reseterror", HTTP_POST, handleResetError);
+  server.on("/events", HTTP_GET, handleEvents);
   Serial.println("HTTP server started");
 }
 
@@ -2695,4 +2601,6 @@ void loop() {
   }
   
   if (status.alarm) {lv_label_set_text(ui_alertReason, String(status.alert_reason).c_str()); lv_scr_load(ui_warning);}
+  //alert reset via web
+  if (lv_scr_act() == ui_warning) { if (!status.alarm) lv_scr_load(ui_main);}
 }

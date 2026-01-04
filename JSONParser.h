@@ -57,6 +57,8 @@ typedef struct {
     float voltage_coeff;
     float current_coeff;
     float rsrv_coeff;
+    float acs_zero;
+    float acs_sens;
 } CalibrationData;
 
 typedef struct {

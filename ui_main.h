@@ -44,6 +44,10 @@ extern lv_obj_t *ui_Label7;
 extern lv_obj_t *ui_plateTmp;
 extern lv_obj_t *ui_Label58;
 extern lv_obj_t *ui_iPWRTxt;
+extern lv_obj_t *ui_Label50;
+extern lv_obj_t *ui_Label51;
+extern lv_obj_t *ui_pumpSTxt;
+extern lv_obj_t *ui_fanSTxt;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus
