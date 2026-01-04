@@ -271,7 +271,7 @@ lv_obj_set_style_text_font(ui_plateTmp, &lv_font_montserrat_20, LV_PART_MAIN| LV
 ui_Label58 = lv_label_create(ui_main);
 lv_obj_set_width( ui_Label58, LV_SIZE_CONTENT);  /// 1
 lv_obj_set_height( ui_Label58, LV_SIZE_CONTENT);   /// 1
-lv_obj_set_x( ui_Label58, 51 );
+lv_obj_set_x( ui_Label58, 50 );
 lv_obj_set_y( ui_Label58, -33 );
 lv_obj_set_align( ui_Label58, LV_ALIGN_CENTER );
 lv_label_set_text(ui_Label58,"INPUT PWR:");
@@ -280,10 +280,10 @@ lv_obj_set_style_text_font(ui_Label58, &lv_font_montserrat_16, LV_PART_MAIN| LV_
 ui_iPWRTxt = lv_label_create(ui_main);
 lv_obj_set_width( ui_iPWRTxt, LV_SIZE_CONTENT);  /// 1
 lv_obj_set_height( ui_iPWRTxt, LV_SIZE_CONTENT);   /// 1
-lv_obj_set_x( ui_iPWRTxt, 135 );
+lv_obj_set_x( ui_iPWRTxt, 133 );
 lv_obj_set_y( ui_iPWRTxt, -33 );
 lv_obj_set_align( ui_iPWRTxt, LV_ALIGN_CENTER );
-lv_label_set_text(ui_iPWRTxt,"10W");
+lv_label_set_text(ui_iPWRTxt,"100W");
 lv_obj_set_style_text_font(ui_iPWRTxt, &lv_font_montserrat_16, LV_PART_MAIN| LV_STATE_DEFAULT);
 
 ui_Label50 = lv_label_create(ui_main);

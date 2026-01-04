@@ -201,9 +201,9 @@ void handleRoot() {
         <link rel="stylesheet" href="/style.css">
     </head>
     <body>
-        <div class="container">
+        <div class="container" id="statusOutGrid">
             <h1>Amplifier Status</h1>
-            <div class="status-grid">
+            <div class="status-grid" id="statusGrid">
                 <div class="status-item">
                     <label>Power:</label>
                     <span id="pwr">0W</span>
@@ -239,6 +239,14 @@ void handleRoot() {
                         <input type="checkbox" id="stateToggle" class="toggle-input">
                         <label for="stateToggle" class="toggle-label"></label>
                     </div>
+                </div>
+                <div class="status-item">
+                    <label>PWM fan:</label>
+                    <span id="pwm_cooler">-</span>
+                </div>
+                <div class="status-item">
+                    <label>PWM pump:</label>
+                    <span id="pwm_pump">OFF</span>
                 </div>
                 <div class="status-item">
                     <label>Band:</label>
@@ -354,16 +362,26 @@ void handleRoot() {
                         document.getElementById('plateTmp').textContent = (data.plate_temp || 0).toFixed(1) + 'C';
                         document.getElementById('band').textContent = data.band || '-';
                         document.getElementById('ptt').textContent = data.ptt ? 'ON' : 'OFF';
+                        document.getElementById('pwm_pump').textContent = (data.pwm_pump || 0) + '%';
+                        document.getElementById('pwm_cooler').textContent = (data.pwm_cooler || 0) + '%';
             
                         const stateToggle = document.getElementById('stateToggle');
                         stateToggle.checked = data.state || false;
             
                         // red color while PTT
+                        const grid = document.getElementById('statusGrid');
+                        const outGrid = document.getElementById('statusOutGrid');
                         const pwrBar = document.getElementById('pwrBar');
                         if(data.ptt) {
                             pwrBar.style.backgroundColor = '#FF0000';
+                            document.body.classList.add('ptt-on');
+                            grid.classList.add('ptt-on');
+                            outGrid.classList.add('ptt-on');
                         } else {
                             pwrBar.style.backgroundColor = '#007AFF';
+                            document.body.classList.remove('ptt-on');
+                            grid.classList.remove('ptt-on');
+                            outGrid.classList.remove('ptt-on');
                         }
                     });
                 }
@@ -420,6 +438,8 @@ void handleStatus() {
     response += "\"ptt\":" + String(status.ptt ? "true" : "false") + ",";
     response += "\"state\":" + String(status.state ? "true" : "false") + ",";
     response += "\"alarm\":" + String(status.alarm ? "true" : "false") + ",";
+    response += "\"pwm_pump\":" + String(status.pwm_pump) + ",";
+    response += "\"pwm_cooler\":" + String(status.pwm_cooler) + ",";
     response += "\"alert_reason\":\"" + String(status.alert_reason) + "\",";
     response += "\"band\":\"" + String(status.band) + "\"";
     response += "}";
@@ -1417,7 +1437,27 @@ void handleCSS() {
     .alert-visible {
         display: flex !important;
     }
+
+    body.ptt-on {
+        background-color: #ffdddd;
+    }
+
+    body.ptt-on .container {
+        border: 2px solid #ff0000;
+    }
     
+    .status-grid.ptt-on {
+        background: #ffdddd;
+        border: 2px solid #ff0000;
+        border-radius: 10px;
+        padding: 10px;
+    }
+
+    .container.ptt-on {
+        background: #ffdddd;
+        border: 2px solid #ff0000;
+    }
+
     )rawliteral";
     
     server.send(200, "text/css", css);
