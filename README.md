@@ -10,7 +10,7 @@ Few web screenshots:<br>
 ![band](https://enthru.net/wp-content/uploads/2025/12/band_page.png)
 
 Few interface photos:<br>
-![main screen](https://enthru.net/wp-content/uploads/2025/12/main.jpg)
+![main screen](https://enthru.net/wp-content/uploads/2026/01/2026-01-06-01.15.43.jpg)
 ![band selection](https://enthru.net/wp-content/uploads/2025/12/band.jpg)
 ![settings 1](https://enthru.net/wp-content/uploads/2025/12/s1.jpg)
 ![settings 2](https://enthru.net/wp-content/uploads/2025/12/s2.jpg)
