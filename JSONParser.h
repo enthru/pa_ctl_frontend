@@ -16,6 +16,7 @@ typedef struct {
     float voltage;
     float water_temp;
     float plate_temp;
+    float coeff;
     bool alarm;
     char alert_reason[20];
     bool state;

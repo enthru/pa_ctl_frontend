@@ -48,6 +48,8 @@ extern lv_obj_t *ui_Label50;
 extern lv_obj_t *ui_Label51;
 extern lv_obj_t *ui_pumpSTxt;
 extern lv_obj_t *ui_fanSTxt;
+extern lv_obj_t *ui_Label59;
+extern lv_obj_t *ui_coeff;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus

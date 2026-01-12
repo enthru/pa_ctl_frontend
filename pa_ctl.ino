@@ -246,7 +246,11 @@ void handleRoot() {
                 </div>
                 <div class="status-item">
                     <label>PWM pump:</label>
-                    <span id="pwm_pump">OFF</span>
+                    <span id="pwm_pump">-</span>
+                </div>
+                <div class="status-item">
+                    <label>Coeff.:</label>
+                    <span id="coeff">-</span>
                 </div>
                 <div class="status-item">
                     <label>Band:</label>
@@ -360,6 +364,7 @@ void handleRoot() {
                         document.getElementById('cur').textContent = (data.current || 0).toFixed(1) + 'A';
                         document.getElementById('waterTmp').textContent = (data.water_temp || 0).toFixed(1) + 'C';
                         document.getElementById('plateTmp').textContent = (data.plate_temp || 0).toFixed(1) + 'C';
+                        document.getElementById('coeff').textContent = (data.coeff || 0).toFixed(1) + '%';
                         document.getElementById('band').textContent = data.band || '-';
                         document.getElementById('ptt').textContent = data.ptt ? 'ON' : 'OFF';
                         document.getElementById('pwm_pump').textContent = (data.pwm_pump || 0) + '%';
@@ -435,6 +440,7 @@ void handleStatus() {
     response += "\"current\":" + String(status.current, 1) + ",";
     response += "\"water_temp\":" + String(status.water_temp, 1) + ",";
     response += "\"plate_temp\":" + String(status.plate_temp, 1) + ",";
+    response += "\"coeff\":" + String(status.coeff, 1) + ",";
     response += "\"ptt\":" + String(status.ptt ? "true" : "false") + ",";
     response += "\"state\":" + String(status.state ? "true" : "false") + ",";
     response += "\"alarm\":" + String(status.alarm ? "true" : "false") + ",";
@@ -1836,6 +1842,7 @@ void debugStatusData() {
     Serial.print("Voltage: "); Serial.println(status.voltage);
     Serial.print("Water temp: "); Serial.println(status.water_temp);
     Serial.print("Plate temp: "); Serial.println(status.plate_temp);
+    Serial.print("Coeff: "); Serial.println(status.coeff);
     Serial.print("Alarm: "); Serial.println(status.alarm ? "true" : "false");
     Serial.print("Alert reason: "); Serial.println(status.alert_reason);
     Serial.print("State: "); Serial.println(status.state ? "true" : "false");
@@ -2152,6 +2159,7 @@ void processParsedData() {
         lv_label_set_text(ui_current, (String(status.current, 1) + "A").c_str());
         lv_label_set_text(ui_waterTmp, (String(status.water_temp, 1) + "C").c_str());
         lv_label_set_text(ui_plateTmp, (String(status.plate_temp, 1) + "C").c_str());
+        lv_label_set_text(ui_coeff, (String(status.coeff, 1) + "%").c_str());
         lv_label_set_text(ui_pumpSTxt, (String(status.pwm_pump) + "%").c_str());
         lv_label_set_text(ui_fanSTxt, (String(status.pwm_cooler) + "%").c_str());
         set_switch_state(ui_mainSwitch, status.state);

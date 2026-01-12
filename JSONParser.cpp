@@ -95,6 +95,7 @@ int parseStatusJson(char* jsonString) {
     status.voltage = atof(getJsonValue(statusObj, "voltage"));
     status.water_temp = atof(getJsonValue(statusObj, "water_temp"));
     status.plate_temp = atof(getJsonValue(statusObj, "plate_temp"));
+    status.coeff = atof(getJsonValue(statusObj, "coeff"));
     
     char* alarmStr = getJsonValue(statusObj, "alarm");
     status.alarm = (strcmp(alarmStr, "true") == 0);
