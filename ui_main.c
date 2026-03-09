@@ -5,7 +5,7 @@
 
 #include "ui.h"
 
-lv_obj_t *ui_main = NULL;lv_obj_t *ui_Label1 = NULL;lv_obj_t *ui_pwrBar = NULL;lv_obj_t *ui_pwrTxt = NULL;lv_obj_t *ui_Label4 = NULL;lv_obj_t *ui_swrValue = NULL;lv_obj_t *ui_Label6 = NULL;lv_obj_t *ui_refTxt = NULL;lv_obj_t *ui_Label8 = NULL;lv_obj_t *ui_volTxt = NULL;lv_obj_t *ui_Label10 = NULL;lv_obj_t *ui_current = NULL;lv_obj_t *ui_mainSwitch = NULL;lv_obj_t *ui_menuBtn = NULL;lv_obj_t *ui_Label12 = NULL;lv_obj_t *ui_Label13 = NULL;lv_obj_t *ui_Label14 = NULL;lv_obj_t *ui_waterTmp = NULL;lv_obj_t *ui_Button1 = NULL;lv_obj_t *ui_Button2 = NULL;lv_obj_t *ui_Label2 = NULL;lv_obj_t *ui_Label3 = NULL;lv_obj_t *ui_Label7 = NULL;lv_obj_t *ui_plateTmp = NULL;lv_obj_t *ui_Label58 = NULL;lv_obj_t *ui_iPWRTxt = NULL;lv_obj_t *ui_Label50 = NULL;lv_obj_t *ui_Label51 = NULL;lv_obj_t *ui_pumpSTxt = NULL;lv_obj_t *ui_fanSTxt = NULL;lv_obj_t *ui_Label59 = NULL;lv_obj_t *ui_coeff = NULL;
+lv_obj_t *ui_main = NULL;lv_obj_t *ui_Label1 = NULL;lv_obj_t *ui_pwrBar = NULL;lv_obj_t *ui_pwrTxt = NULL;lv_obj_t *ui_Label4 = NULL;lv_obj_t *ui_swrValue = NULL;lv_obj_t *ui_Label6 = NULL;lv_obj_t *ui_refTxt = NULL;lv_obj_t *ui_Label8 = NULL;lv_obj_t *ui_volTxt = NULL;lv_obj_t *ui_Label10 = NULL;lv_obj_t *ui_current = NULL;lv_obj_t *ui_mainSwitch = NULL;lv_obj_t *ui_menuBtn = NULL;lv_obj_t *ui_Label12 = NULL;lv_obj_t *ui_Label13 = NULL;lv_obj_t *ui_Label14 = NULL;lv_obj_t *ui_waterTmp = NULL;lv_obj_t *ui_Button1 = NULL;lv_obj_t *ui_Button2 = NULL;lv_obj_t *ui_Label2 = NULL;lv_obj_t *ui_Label3 = NULL;lv_obj_t *ui_Label7 = NULL;lv_obj_t *ui_plateTmp = NULL;lv_obj_t *ui_Label58 = NULL;lv_obj_t *ui_iPWRTxt = NULL;lv_obj_t *ui_Label50 = NULL;lv_obj_t *ui_Label51 = NULL;lv_obj_t *ui_fanSTxt = NULL;lv_obj_t *ui_pumpSTxt = NULL;lv_obj_t *ui_Label59 = NULL;lv_obj_t *ui_coeff = NULL;
 // event funtions
 void ui_event_main( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -304,23 +304,23 @@ lv_obj_set_align( ui_Label51, LV_ALIGN_CENTER );
 lv_label_set_text(ui_Label51,"PUMP SPEED:");
 lv_obj_set_style_text_font(ui_Label51, &lv_font_montserrat_16, LV_PART_MAIN| LV_STATE_DEFAULT);
 
-ui_pumpSTxt = lv_label_create(ui_main);
-lv_obj_set_width( ui_pumpSTxt, LV_SIZE_CONTENT);  /// 1
-lv_obj_set_height( ui_pumpSTxt, LV_SIZE_CONTENT);   /// 1
-lv_obj_set_x( ui_pumpSTxt, -62 );
-lv_obj_set_y( ui_pumpSTxt, 13 );
-lv_obj_set_align( ui_pumpSTxt, LV_ALIGN_CENTER );
-lv_label_set_text(ui_pumpSTxt,"100%");
-lv_obj_set_style_text_font(ui_pumpSTxt, &lv_font_montserrat_16, LV_PART_MAIN| LV_STATE_DEFAULT);
-
 ui_fanSTxt = lv_label_create(ui_main);
 lv_obj_set_width( ui_fanSTxt, LV_SIZE_CONTENT);  /// 1
 lv_obj_set_height( ui_fanSTxt, LV_SIZE_CONTENT);   /// 1
 lv_obj_set_x( ui_fanSTxt, -62 );
-lv_obj_set_y( ui_fanSTxt, 33 );
+lv_obj_set_y( ui_fanSTxt, 13 );
 lv_obj_set_align( ui_fanSTxt, LV_ALIGN_CENTER );
 lv_label_set_text(ui_fanSTxt,"100%");
 lv_obj_set_style_text_font(ui_fanSTxt, &lv_font_montserrat_16, LV_PART_MAIN| LV_STATE_DEFAULT);
+
+ui_pumpSTxt = lv_label_create(ui_main);
+lv_obj_set_width( ui_pumpSTxt, LV_SIZE_CONTENT);  /// 1
+lv_obj_set_height( ui_pumpSTxt, LV_SIZE_CONTENT);   /// 1
+lv_obj_set_x( ui_pumpSTxt, -62 );
+lv_obj_set_y( ui_pumpSTxt, 33 );
+lv_obj_set_align( ui_pumpSTxt, LV_ALIGN_CENTER );
+lv_label_set_text(ui_pumpSTxt,"100%");
+lv_obj_set_style_text_font(ui_pumpSTxt, &lv_font_montserrat_16, LV_PART_MAIN| LV_STATE_DEFAULT);
 
 ui_Label59 = lv_label_create(ui_main);
 lv_obj_set_width( ui_Label59, LV_SIZE_CONTENT);  /// 1
@@ -381,8 +381,8 @@ ui_Label58= NULL;
 ui_iPWRTxt= NULL;
 ui_Label50= NULL;
 ui_Label51= NULL;
-ui_pumpSTxt= NULL;
 ui_fanSTxt= NULL;
+ui_pumpSTxt= NULL;
 ui_Label59= NULL;
 ui_coeff= NULL;
 
