@@ -7,15 +7,6 @@
 
 lv_obj_t *ui_protection2 = NULL;lv_obj_t *ui_Label20 = NULL;lv_obj_t *ui_Button4 = NULL;lv_obj_t *ui_Label21 = NULL;lv_obj_t *ui_Button7 = NULL;lv_obj_t *ui_Label29 = NULL;lv_obj_t *ui_maxPumpSpdTmpSlider = NULL;lv_obj_t *ui_Label39 = NULL;lv_obj_t *ui_minPumpSpdTmpSlider = NULL;lv_obj_t *ui_Label53 = NULL;lv_obj_t *ui_maxFanSpdTmpSlider = NULL;lv_obj_t *ui_Label54 = NULL;lv_obj_t *ui_minFanSpdTmpSlider = NULL;lv_obj_t *ui_Label55 = NULL;lv_obj_t *ui_defaultBandDropdown = NULL;lv_obj_t *ui_maxPumpSpeedTmp = NULL;lv_obj_t *ui_maxFanSpeedTmp = NULL;lv_obj_t *ui_minPumpSpeedTmp = NULL;lv_obj_t *ui_minFanSpeedTmp = NULL;lv_obj_t *ui_protectionSwitch = NULL;lv_obj_t *ui_Label52 = NULL;lv_obj_t *ui_minCoeffSlider = NULL;lv_obj_t *ui_Label11 = NULL;lv_obj_t *ui_minCoeff = NULL;
 // event funtions
-void ui_event_protection2( lv_event_t * e) {
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-if ( event_code == LV_EVENT_GESTURE &&  lv_indev_get_gesture_dir(lv_indev_active()) == LV_DIR_RIGHT  ) {
-lv_indev_wait_release(lv_indev_active());
-      _ui_screen_change( &ui_protection, LV_SCR_LOAD_ANIM_OUT_RIGHT, 500, 0, &ui_protection_screen_init);
-}
-}
-
 void ui_event_Button4( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);
 
@@ -308,7 +299,6 @@ lv_obj_add_event_cb(ui_minPumpSpdTmpSlider, ui_event_minPumpSpdTmpSlider, LV_EVE
 lv_obj_add_event_cb(ui_maxFanSpdTmpSlider, ui_event_maxFanSpdTmpSlider, LV_EVENT_ALL, NULL);
 lv_obj_add_event_cb(ui_minFanSpdTmpSlider, ui_event_minFanSpdTmpSlider, LV_EVENT_ALL, NULL);
 lv_obj_add_event_cb(ui_minCoeffSlider, ui_event_minCoeffSlider, LV_EVENT_ALL, NULL);
-lv_obj_add_event_cb(ui_protection2, ui_event_protection2, LV_EVENT_ALL, NULL);
 
 }
 

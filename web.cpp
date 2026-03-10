@@ -115,7 +115,11 @@ void handleResetAlert() {
     status.ptt   = false; state.ptt    = false;
     state.state  = false; status.state = false;
     sendStateData();
-    delay(1000);
+    unsigned long start = millis();
+    while (millis() - start < 1000) {
+        lv_timer_handler();
+        delay(5);
+    }
     server.send(200, "text/plain", "OK");
 }
 

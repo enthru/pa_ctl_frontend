@@ -13,7 +13,6 @@ extern "C" {
 // SCREEN: ui_protection2
 extern void ui_protection2_screen_init(void);
 extern void ui_protection2_screen_destroy(void);
-extern void ui_event_protection2( lv_event_t * e);
 extern lv_obj_t *ui_protection2;
 extern lv_obj_t *ui_Label20;
 extern void ui_event_Button4( lv_event_t * e);
