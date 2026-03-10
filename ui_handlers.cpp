@@ -139,6 +139,20 @@ void protectionOpened(lv_event_t * /*e*/) {
 }
 
 void bandOpened(lv_event_t * /*e*/) {
+    struct { lv_obj_t **btn; const char *band; } map[] = {
+        {&ui_Button160m, "160m"}, {&ui_Button80m,  "80m"},
+        {&ui_Button60m,  "60m"},  {&ui_Button40m,  "40m"},
+        {&ui_Button30m,  "30m"},  {&ui_Button20m,  "20m"},
+        {&ui_Button17m,  "17m"},  {&ui_Button15m,  "15m"},
+        {&ui_Button12m,  "12m"},  {&ui_Button10m,  "10m"},
+        {&ui_Button6m,   "6m"},
+    };
+    for (auto &m : map) {
+        bool active = strcmp(state.band, m.band) == 0;
+        lv_obj_set_style_bg_color(*m.btn,
+            active ? lv_color_hex(0xC00000) : lv_color_hex(0x2196F3),
+            LV_PART_MAIN);
+    }
     if (requestAndWaitForSettings(300))
         set_switch_state(ui_autoSelectSwitch, settings.autoband);
 }

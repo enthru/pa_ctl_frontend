@@ -9,6 +9,8 @@
 #include "web.h"
 #include "ota.h"
 
+bool warningDismissed = false;
+
 void setup() {
     Serial.begin(115200);
     Serial1.begin(115200, SERIAL_8N1, 18, 17);
@@ -136,8 +138,12 @@ void loop() {
 
         lv_label_set_text(ui_alertReason, alarmText);
         lv_scr_load(ui_warning);
+        warningDismissed = false;
     }
-    // Alert reset via web
-    if (lv_scr_act() == ui_warning && !status.alarm)
+    
+    // reset via web
+    if (!warningDismissed && lv_scr_act() == ui_warning && !status.alarm) {
+        warningDismissed = true;
         lv_scr_load(ui_main);
+    }
 }
