@@ -277,3 +277,33 @@ static void saveWiFiSettingsEventHandler(lv_event_t *e) {
 void setupLVGLButtonHandler() {
     lv_obj_add_event_cb(ui_Button10, saveWiFiSettingsEventHandler, LV_EVENT_CLICKED, NULL);
 }
+
+// charts
+
+void graphOpened(lv_event_t * /*e*/) {
+    static int32_t pwr_buf[CHART_POINTS];
+    static int32_t tmp_buf[CHART_POINTS];
+
+    for (int i = 0; i < CHART_POINTS; i++) {
+        pwr_buf[i] = LV_CHART_POINT_NONE;
+        tmp_buf[i] = LV_CHART_POINT_NONE;
+    }
+
+    uint8_t count = (history.count > CHART_POINTS) ? CHART_POINTS : history.count;
+    uint8_t start = (count < CHART_POINTS) ? 0 : history.head;
+
+    for (uint8_t i = 0; i < count; i++) {
+        uint8_t idx = (start + i) % CHART_POINTS;
+        pwr_buf[i] = history.power[idx];
+        tmp_buf[i] = history.plate_temp[idx];
+    }
+
+    lv_chart_series_t *ser_pwr  = lv_chart_get_series_next(ui_powerChart, NULL);
+    lv_chart_series_t *ser_temp = lv_chart_get_series_next(ui_tempChart,  NULL);
+
+    if (ser_pwr)  lv_chart_set_ext_y_array(ui_powerChart, ser_pwr,  pwr_buf);
+    if (ser_temp) lv_chart_set_ext_y_array(ui_tempChart,  ser_temp, tmp_buf);
+
+    lv_chart_refresh(ui_powerChart);
+    lv_chart_refresh(ui_tempChart);
+}

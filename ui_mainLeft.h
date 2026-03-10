@@ -15,8 +15,16 @@ extern void ui_mainLeft_screen_init(void);
 extern void ui_mainLeft_screen_destroy(void);
 extern void ui_event_mainLeft( lv_event_t * e);
 extern lv_obj_t *ui_mainLeft;
-extern lv_obj_t *ui_Label42;
 extern lv_obj_t *ui_Label60;
+extern lv_obj_t *ui_tempChart;
+extern lv_obj_t *ui_tempChart_Xaxis;
+extern lv_obj_t *ui_tempChart_Yaxis1;
+extern lv_obj_t *ui_tempChart_Yaxis2;
+extern lv_obj_t *ui_powerChart;
+extern lv_obj_t *ui_powerChart_Xaxis;
+extern lv_obj_t *ui_powerChart_Yaxis1;
+extern lv_obj_t *ui_powerChart_Yaxis2;
+extern lv_obj_t *ui_Label42;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus

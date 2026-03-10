@@ -86,6 +86,19 @@ enum ResponseType {
     RESPONSE_CALIBRATION_SEND
 };
 
+#define CHART_POINTS 100
+
+// telemetry storage
+struct ChartHistory {
+    int16_t water_temp[CHART_POINTS];
+    int16_t plate_temp[CHART_POINTS];
+    int16_t power[CHART_POINTS];
+    uint8_t head;
+    uint8_t count;
+};
+
+extern ChartHistory history;
+
 extern String       ResponseTypeString;
 extern ResponseType waitingForResponse;
 extern unsigned long responseRequestTime;

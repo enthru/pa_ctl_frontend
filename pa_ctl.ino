@@ -11,6 +11,9 @@
 
 bool warningDismissed = false;
 
+// telemetry storage
+static unsigned long lastSample = 0;
+
 void setup() {
     Serial.begin(115200);
     Serial1.begin(115200, SERIAL_8N1, 18, 17);
@@ -145,5 +148,19 @@ void loop() {
     if (!warningDismissed && lv_scr_act() == ui_warning && !status.alarm) {
         warningDismissed = true;
         lv_scr_load(ui_main);
+    }
+    
+    // store telemetry
+    if (now - lastSample >= 1000) {
+        lastSample = now;
+        history.water_temp[history.head] = (int16_t)status.water_temp;
+        history.plate_temp[history.head] = (int16_t)status.plate_temp;
+        history.power[history.head]      = (int16_t)status.fwd;
+        history.head = (history.head + 1) % CHART_POINTS;
+        if (history.count < CHART_POINTS) history.count++;
+
+        if (lv_scr_act() == ui_mainLeft) {
+            graphOpened(NULL);
+    }
     }
 }

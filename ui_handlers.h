@@ -36,3 +36,7 @@ void togglePTT(lv_event_t *e);
 
 // ─── WiFi UI ──────────────────────────────────────────────────────────────────
 void setupLVGLButtonHandler();
+
+// chart
+void graphOpened(lv_event_t *e);
+
