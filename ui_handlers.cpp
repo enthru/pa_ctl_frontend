@@ -143,16 +143,25 @@ void bandOpened(lv_event_t * /*e*/) {
         set_switch_state(ui_autoSelectSwitch, settings.autoband);
 }
 
-void resetAlert(lv_event_t * /*e*/) {
+void resetAlert(lv_event_t *e) {
+    lv_obj_t *btn = lv_event_get_target_obj(e);
+    lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_remove_flag(btn, LV_OBJ_FLAG_CLICKABLE);
+
     if (status.alarm) {
         state.alarm  = false;  status.alarm  = false;
         status.ptt   = false;  state.ptt     = false;
         state.state  = false;  status.state  = false;
         sendStateData();
     }
+
     lv_label_set_text(ui_alertReason, "Delaying...");
-    delay(1000);
-    lv_scr_load(ui_main);
+
+    lv_timer_t *t = lv_timer_create([](lv_timer_t *timer) {
+        lv_timer_del(timer);
+        lv_scr_load(ui_main);
+    }, 1000, NULL);
+    lv_timer_set_repeat_count(t, 1);
 }
 
 // ─── Settings UI handlers ─────────────────────────────────────────────────────
@@ -225,9 +234,9 @@ void enableAmp(lv_event_t *e) {
 }
 
 void togglePTT(lv_event_t *e) {
-    lv_obj_t  *sw    = (lv_obj_t *)lv_event_get_target(e);
-    lv_color_t color = lv_obj_get_style_bg_color(sw, LV_PART_INDICATOR);
-    if (color.red == 0xFF) {
+    lv_obj_t *sw = (lv_obj_t *)lv_event_get_target(e);
+
+    if (state.ptt) {
         state.ptt = false;
         lv_obj_set_style_bg_color(sw, lv_color_hex(0x2196F3), LV_PART_INDICATOR);
         Serial.println("PTT: OFF");

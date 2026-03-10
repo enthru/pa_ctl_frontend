@@ -44,12 +44,25 @@ static const char ALERT_JS[] PROGMEM = R"js(
         document.getElementById('alertOverlay').classList.remove('alert-visible');
         document.body.style.overflow = 'auto';
     }
+    function alertText(reason) {
+        const map = {
+            'water_temp': 'Water temperature too high',
+            'plate_temp': 'Waterblock temperature too high',
+            'coeff':      'Low efficiency',
+            'swr':        'High SWR',
+            'voltage':    'Overvoltage',
+            'current':    'Current too high',
+            'ipower':     'High input power',
+            'band':       'Band error'
+        };
+        return map[reason] || 'Unknown error';
+    }
     function pollEvents() {
         fetch('/events')
         .then(r => r.json())
         .then(data => {
             if (data.has_error) { showAlert("Communication Error: " + (data.error_message || ""), 'error'); return; }
-            if (data.alarm_active) showAlert(data.alert_reason || "ALERT", 'alert');
+            if (data.alarm_active) showAlert(alertText(data.alert_reason), 'alert');
             else hideAlert();
         })
         .catch(err => console.error('Events error:', err));
@@ -249,6 +262,17 @@ void handleBandPage() {
                 setTimeout(() => window.location.href='/', 50); })
             .catch(() => { document.getElementById('message').textContent = 'Error setting band'; });
         }
+        document.addEventListener('DOMContentLoaded', () => {
+            fetch('/status').then(r => r.json()).then(data => {
+                if (!data.band) return;
+                document.querySelectorAll('.band-btn').forEach(btn => {
+                    if (btn.textContent.trim() === data.band) {
+                        btn.style.background = '#cc0000';
+                        btn.style.boxShadow  = '0 0 8px rgba(255,0,0,0.6)';
+                    }
+                });
+            }).catch(console.error);
+        });
     </script>
     )rawliteral";
     html += ALERT_HTML;
