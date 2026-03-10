@@ -217,18 +217,17 @@ int parseSettingsJson(char* jsonString) {
     Serial.println(settingsObj);
 #endif
 
-    settings.max_swr = atof(getJsonValue(settingsObj, "max_swr"));
-    settings.max_current = atof(getJsonValue(settingsObj, "max_current"));
-    settings.max_voltage = atof(getJsonValue(settingsObj, "max_voltage"));
-    settings.max_water_temp = atof(getJsonValue(settingsObj, "max_water_temp"));
-    settings.max_plate_temp = atof(getJsonValue(settingsObj, "max_plate_temp"));
-    settings.max_pump_speed_temp = atof(getJsonValue(settingsObj, "max_pump_speed_temp"));
-    settings.min_pump_speed_temp = atof(getJsonValue(settingsObj, "min_pump_speed_temp"));
-    settings.max_fan_speed_temp = atof(getJsonValue(settingsObj, "max_fan_speed_temp"));
-    settings.min_fan_speed_temp = atof(getJsonValue(settingsObj, "min_fan_speed_temp"));
-    settings.max_input_power = atof(getJsonValue(settingsObj, "max_input_power"));
-    settings.min_coeff = atof(getJsonValue(settingsObj, "min_coeff"));
-
+    settings.max_swr             = atoi(getJsonValue(settingsObj, "max_swr"));
+    settings.max_current         = atoi(getJsonValue(settingsObj, "max_current"));
+    settings.max_voltage         = atoi(getJsonValue(settingsObj, "max_voltage"));
+    settings.max_water_temp      = atoi(getJsonValue(settingsObj, "max_water_temp"));
+    settings.max_plate_temp      = atoi(getJsonValue(settingsObj, "max_plate_temp"));
+    settings.max_pump_speed_temp = atoi(getJsonValue(settingsObj, "max_pump_speed_temp"));
+    settings.min_pump_speed_temp = atoi(getJsonValue(settingsObj, "min_pump_speed_temp"));
+    settings.max_fan_speed_temp  = atoi(getJsonValue(settingsObj, "max_fan_speed_temp"));
+    settings.min_fan_speed_temp  = atoi(getJsonValue(settingsObj, "min_fan_speed_temp"));
+    settings.max_input_power     = atof(getJsonValue(settingsObj, "max_input_power"));
+    settings.min_coeff           = atof(getJsonValue(settingsObj, "min_coeff"));
 
     char* autobandStr = getJsonValue(settingsObj, "autoband");
     settings.autoband = (strcmp(autobandStr, "true") == 0);

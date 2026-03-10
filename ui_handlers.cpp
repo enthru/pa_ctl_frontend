@@ -175,10 +175,13 @@ void saveSettings(lv_event_t * /*e*/) {
     status.protection_enabled    = lv_obj_get_state(ui_protectionSwitch) & LV_STATE_CHECKED;
     lv_dropdown_get_selected_str(ui_defaultBandDropdown, settings.default_band, sizeof(settings.default_band));
 
+    if (settings.max_pump_speed_temp < settings.min_pump_speed_temp)
+        settings.max_pump_speed_temp = settings.min_pump_speed_temp;
+    if (settings.max_fan_speed_temp < settings.min_fan_speed_temp)
+        settings.max_fan_speed_temp = settings.min_fan_speed_temp;
+
 #if DEBUG
     Serial.println("[DEBUG] Settings saved from UI to variables:");
-    Serial.println("Max SWR: " + String(settings.max_swr));
-    // … (остальные поля по желанию)
 #endif
     sendStateData();
     sendSettingsData();

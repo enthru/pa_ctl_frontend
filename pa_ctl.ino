@@ -123,7 +123,18 @@ void loop() {
 
     // ── Alarm screen routing ──────────────────────────────────────────────────
     if (status.alarm) {
-        lv_label_set_text(ui_alertReason, String(status.alert_reason).c_str());
+        const char* alarmText = "Unknown error";
+
+        if      (String(status.alert_reason) == "water_temp") alarmText = "Water temperature too high";
+        else if (String(status.alert_reason) == "plate_temp") alarmText = "Waterblock temperature too high";
+        else if (String(status.alert_reason) == "coeff")      alarmText = "Low efficiency";
+        else if (String(status.alert_reason) == "swr")        alarmText = "High SWR";
+        else if (String(status.alert_reason) == "voltage")    alarmText = "Overoltage";
+        else if (String(status.alert_reason) == "current")    alarmText = "Current too high";
+        else if (String(status.alert_reason) == "ipower")     alarmText = "High input power";
+        else if (String(status.alert_reason) == "band")       alarmText = "Band error";
+
+        lv_label_set_text(ui_alertReason, alarmText);
         lv_scr_load(ui_warning);
     }
     // Alert reset via web

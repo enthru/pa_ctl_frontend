@@ -30,17 +30,17 @@ typedef struct {
 } StatusData;
 
 typedef struct {
-    float max_swr;
-    float max_current;
-    float max_voltage;
-    float max_water_temp;
-    float max_plate_temp;
-    float max_pump_speed_temp;
-    float min_pump_speed_temp;
-    float max_fan_speed_temp;
-    float min_fan_speed_temp;
-    int   max_input_power;
-    int   min_coeff;
+    int max_swr;
+    int max_current;
+    int max_voltage;
+    int max_water_temp;
+    int max_plate_temp;
+    int max_pump_speed_temp;
+    int min_pump_speed_temp;
+    int max_fan_speed_temp;
+    int min_fan_speed_temp;
+    int max_input_power;
+    int min_coeff;
     bool autoband;
     char default_band[10];
 } SettingsData;

@@ -290,23 +290,23 @@ void handleSettingsPage() {
         <form id="settingsForm" action="/savesettings" method="POST">
             <div class="settings-grid">
                 <div class="settings-item"><label>Max SWR:</label>
-                    <input type="number" id="max_swr" name="max_swr" step="0.1" min="1" max="4" value="0"></div>
+                    <input type="number" id="max_swr" name="max_swr" step="1" min="1" max="10" value="0"></div>
                 <div class="settings-item"><label>Max Current (A):</label>
-                    <input type="number" id="max_current" name="max_current" step="0.1" min="1" max="50" value="0"></div>
+                    <input type="number" id="max_current" name="max_current" step="1" min="1" max="50" value="0"></div>
                 <div class="settings-item"><label>Max Voltage (V):</label>
-                    <input type="number" id="max_voltage" name="max_voltage" step="0.1" min="1" max="60" value="0"></div>
+                    <input type="number" id="max_voltage" name="max_voltage" step="1" min="1" max="60" value="0"></div>
                 <div class="settings-item"><label>Max Plate Temp (°C):</label>
-                    <input type="number" id="max_plate_temp" name="max_plate_temp" step="0.1" min="10" max="100" value="0"></div>
+                    <input type="number" id="max_plate_temp" name="max_plate_temp" step="1" min="10" max="100" value="0"></div>
                 <div class="settings-item"><label>Max Water Temp (°C):</label>
-                    <input type="number" id="max_water_temp" name="max_water_temp" step="0.1" min="10" max="100" value="0"></div>
+                    <input type="number" id="max_water_temp" name="max_water_temp" step="1" min="10" max="100" value="0"></div>
                 <div class="settings-item"><label>Max Pump Speed Temp (°C):</label>
-                    <input type="number" id="max_pump_speed_temp" name="max_pump_speed_temp" step="0.1" min="10" max="100" value="0"></div>
+                    <input type="number" id="max_pump_speed_temp" name="max_pump_speed_temp" step="1" min="10" max="100" value="0"></div>
                 <div class="settings-item"><label>Min Pump Speed Temp (°C):</label>
-                    <input type="number" id="min_pump_speed_temp" name="min_pump_speed_temp" step="0.1" min="10" max="100" value="0"></div>
+                    <input type="number" id="min_pump_speed_temp" name="min_pump_speed_temp" step="1" min="10" max="100" value="0"></div>
                 <div class="settings-item"><label>Max Fan Speed Temp (°C):</label>
-                    <input type="number" id="max_fan_speed_temp" name="max_fan_speed_temp" step="0.1" min="10" max="100" value="0"></div>
+                    <input type="number" id="max_fan_speed_temp" name="max_fan_speed_temp" step="1" min="10" max="100" value="0"></div>
                 <div class="settings-item"><label>Min Fan Speed Temp (°C):</label>
-                    <input type="number" id="min_fan_speed_temp" name="min_fan_speed_temp" step="0.1" min="10" max="100" value="0"></div>
+                    <input type="number" id="min_fan_speed_temp" name="min_fan_speed_temp" step="1" min="10" max="100" value="0"></div>
                 <div class="settings-item"><label>Min efficiency coefficient:</label>
                     <input type="number" id="min_coeff" name="min_coeff" step="1" min="30" max="90" value="0"></div>
                 <div class="settings-item"><label>Maximum input power:</label>
@@ -345,11 +345,20 @@ void handleSettingsPage() {
     )rawliteral";
     html += ALERT_JS;
     html += R"rawliteral(
-        function loadSettings() {
-            fetch('/getsettings').then(r => r.json()).then(data => {
+        function loadSettings(attempt) {
+            attempt = attempt || 1;
+            const msg = document.getElementById('message');
+            msg.style.color = '#28a745';
+            msg.textContent = attempt > 1 ? ('Retrying... (' + attempt + ')') : 'Loading...';
+            fetch('/getsettings')
+            .then(r => {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            })
+            .then(data => {
                 ['max_swr','max_current','max_voltage','max_plate_temp','max_water_temp',
-                 'max_pump_speed_temp','min_pump_speed_temp','max_fan_speed_temp',
-                 'min_fan_speed_temp','min_coeff','max_input_power'].forEach(id => {
+                'max_pump_speed_temp','min_pump_speed_temp','max_fan_speed_temp',
+                'min_fan_speed_temp','min_coeff','max_input_power'].forEach(id => {
                     document.getElementById(id).value = data[id];
                 });
                 document.getElementById('protection_enabled').checked = data.protection_enabled;
@@ -358,10 +367,25 @@ void handleSettingsPage() {
                 for (let i = 0; i < sel.options.length; i++) {
                     if (sel.options[i].value === data.default_band) { sel.selectedIndex = i; break; }
                 }
-            }).catch(e => { document.getElementById('message').textContent = 'Error: ' + e.message; });
+                msg.textContent = '';
+            })
+            .catch(e => {
+                if (attempt < 5) {
+                    setTimeout(() => loadSettings(attempt + 1), 500 * attempt);
+                } else {
+                    msg.style.color = '#dc3545';
+                    msg.textContent = 'Load failed. ';
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.textContent = 'Retry';
+                    btn.onclick = () => { msg.style.color = '#28a745'; msg.innerHTML = ''; loadSettings(1); };
+                    msg.appendChild(btn);
+                }
+            });
         }
-        document.addEventListener('DOMContentLoaded', loadSettings);
+        document.addEventListener('DOMContentLoaded', () => loadSettings(1));
         document.getElementById('settingsForm').addEventListener('submit', () => {
+            document.getElementById('message').style.color = '#28a745';
             document.getElementById('message').textContent = 'Saving...';
         });
     </script>
@@ -378,15 +402,15 @@ void handleGetSettings() {
         return;
     }
     String r = "{";
-    r += "\"max_swr\":"             + String(settings.max_swr,            2) + ",";
-    r += "\"max_current\":"         + String(settings.max_current,        2) + ",";
-    r += "\"max_voltage\":"         + String(settings.max_voltage,        2) + ",";
-    r += "\"max_plate_temp\":"      + String(settings.max_plate_temp,     2) + ",";
-    r += "\"max_water_temp\":"      + String(settings.max_water_temp,     2) + ",";
-    r += "\"max_pump_speed_temp\":" + String(settings.max_pump_speed_temp,2) + ",";
-    r += "\"min_pump_speed_temp\":" + String(settings.min_pump_speed_temp,2) + ",";
-    r += "\"max_fan_speed_temp\":"  + String(settings.max_fan_speed_temp, 2) + ",";
-    r += "\"min_fan_speed_temp\":"  + String(settings.min_fan_speed_temp, 2) + ",";
+    r += "\"max_swr\":"             + String(settings.max_swr)             + ",";
+    r += "\"max_current\":"         + String(settings.max_current)         + ",";
+    r += "\"max_voltage\":"         + String(settings.max_voltage)         + ",";
+    r += "\"max_plate_temp\":"      + String(settings.max_plate_temp)      + ",";
+    r += "\"max_water_temp\":"      + String(settings.max_water_temp)      + ",";
+    r += "\"max_pump_speed_temp\":" + String(settings.max_pump_speed_temp) + ",";
+    r += "\"min_pump_speed_temp\":" + String(settings.min_pump_speed_temp) + ",";
+    r += "\"max_fan_speed_temp\":"  + String(settings.max_fan_speed_temp)  + ",";
+    r += "\"min_fan_speed_temp\":"  + String(settings.min_fan_speed_temp)  + ",";
     r += "\"min_coeff\":"           + String(settings.min_coeff)              + ",";
     r += "\"max_input_power\":"     + String(settings.max_input_power)        + ",";
     r += "\"protection_enabled\":"  + String(status.protection_enabled ? "true":"false") + ",";
@@ -398,17 +422,17 @@ void handleGetSettings() {
 
 void handleSaveSettings() {
     if (server.method() != HTTP_POST) { server.send(405, "text/plain", "Method Not Allowed"); return; }
-    if (server.hasArg("max_swr"))            settings.max_swr            = server.arg("max_swr").toFloat();
-    if (server.hasArg("max_current"))        settings.max_current        = server.arg("max_current").toFloat();
-    if (server.hasArg("max_voltage"))        settings.max_voltage        = server.arg("max_voltage").toFloat();
-    if (server.hasArg("max_plate_temp"))     settings.max_plate_temp     = server.arg("max_plate_temp").toFloat();
-    if (server.hasArg("max_water_temp"))     settings.max_water_temp     = server.arg("max_water_temp").toFloat();
-    if (server.hasArg("max_pump_speed_temp"))settings.max_pump_speed_temp= server.arg("max_pump_speed_temp").toFloat();
-    if (server.hasArg("min_pump_speed_temp"))settings.min_pump_speed_temp= server.arg("min_pump_speed_temp").toFloat();
-    if (server.hasArg("max_fan_speed_temp")) settings.max_fan_speed_temp = server.arg("max_fan_speed_temp").toFloat();
-    if (server.hasArg("min_fan_speed_temp")) settings.min_fan_speed_temp = server.arg("min_fan_speed_temp").toFloat();
-    if (server.hasArg("min_coeff"))          settings.min_coeff          = server.arg("min_coeff").toInt();
-    if (server.hasArg("max_input_power"))    settings.max_input_power    = server.arg("max_input_power").toInt();
+    if (server.hasArg("max_swr"))            settings.max_swr             = server.arg("max_swr").toInt();
+    if (server.hasArg("max_current"))        settings.max_current         = server.arg("max_current").toInt();
+    if (server.hasArg("max_voltage"))        settings.max_voltage         = server.arg("max_voltage").toInt();
+    if (server.hasArg("max_plate_temp"))     settings.max_plate_temp      = server.arg("max_plate_temp").toInt();
+    if (server.hasArg("max_water_temp"))     settings.max_water_temp      = server.arg("max_water_temp").toInt();
+    if (server.hasArg("max_pump_speed_temp"))settings.max_pump_speed_temp = server.arg("max_pump_speed_temp").toInt();
+    if (server.hasArg("min_pump_speed_temp"))settings.min_pump_speed_temp = server.arg("min_pump_speed_temp").toInt();
+    if (server.hasArg("max_fan_speed_temp")) settings.max_fan_speed_temp  = server.arg("max_fan_speed_temp").toInt();
+    if (server.hasArg("min_fan_speed_temp")) settings.min_fan_speed_temp  = server.arg("min_fan_speed_temp").toInt();
+    if (server.hasArg("min_coeff"))          settings.min_coeff           = server.arg("min_coeff").toInt();
+    if (server.hasArg("max_input_power"))    settings.max_input_power     = server.arg("max_input_power").toInt();
     status.protection_enabled = server.hasArg("protection_enabled");
     settings.autoband         = server.hasArg("autoband");
     if (server.hasArg("default_band")) {
@@ -416,6 +440,12 @@ void handleSaveSettings() {
         strncpy(settings.default_band, b.c_str(), sizeof(settings.default_band) - 1);
         settings.default_band[sizeof(settings.default_band)-1] = '\0';
     }
+
+    if (settings.max_pump_speed_temp < settings.min_pump_speed_temp)
+        settings.max_pump_speed_temp = settings.min_pump_speed_temp;
+    if (settings.max_fan_speed_temp < settings.min_fan_speed_temp)
+        settings.max_fan_speed_temp = settings.min_fan_speed_temp;
+
     sendStateData();
     sendSettingsData();
     server.sendHeader("Location", "/"); server.send(303);
@@ -470,17 +500,41 @@ void handleCalibrationPage() {
     )rawliteral";
     html += ALERT_JS;
     html += R"rawliteral(
-        function loadCalibration() {
-            fetch('/getcalibration').then(r => r.json()).then(data => {
+        function loadCalibration(attempt) {
+            attempt = attempt || 1;
+            const msg = document.getElementById('message');
+            msg.style.color = '#28a745';
+            msg.textContent = attempt > 1 ? ('Retrying... (' + attempt + ')') : 'Loading...';
+            fetch('/getcalibration')
+            .then(r => {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            })
+            .then(data => {
                 ['low_fwd_coeff','low_rev_coeff','low_ifwd_coeff',
-                 'mid_fwd_coeff','mid_rev_coeff','mid_ifwd_coeff',
-                 'high_fwd_coeff','high_rev_coeff','high_ifwd_coeff',
-                 'voltage_coeff','current_coeff','rsrv_coeff','acs_zero','acs_sens']
+                'mid_fwd_coeff','mid_rev_coeff','mid_ifwd_coeff',
+                'high_fwd_coeff','high_rev_coeff','high_ifwd_coeff',
+                'voltage_coeff','current_coeff','rsrv_coeff','acs_zero','acs_sens']
                 .forEach(id => { document.getElementById(id).value = data[id]; });
-            }).catch(e => { document.getElementById('message').textContent = 'Error: ' + e.message; });
+                msg.textContent = '';
+            })
+            .catch(e => {
+                if (attempt < 5) {
+                    setTimeout(() => loadCalibration(attempt + 1), 500 * attempt);
+                } else {
+                    msg.style.color = '#dc3545';
+                    msg.textContent = 'Load failed. ';
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.textContent = 'Retry';
+                    btn.onclick = () => { msg.style.color = '#28a745'; msg.innerHTML = ''; loadCalibration(1); };
+                    msg.appendChild(btn);
+                }
+            });
         }
-        document.addEventListener('DOMContentLoaded', loadCalibration);
+        document.addEventListener('DOMContentLoaded', () => loadCalibration(1));
         document.getElementById('calibrationForm').addEventListener('submit', () => {
+            document.getElementById('message').style.color = '#28a745';
             document.getElementById('message').textContent = 'Saving calibration...';
         });
     </script>

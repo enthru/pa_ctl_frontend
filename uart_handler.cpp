@@ -137,15 +137,15 @@ void sendSettingsData() {
     char json[768];
     snprintf(json, sizeof(json),
         "{\"settings\":{"
-        "\"max_swr\":%.2f,"
-        "\"max_current\":%.2f,"
-        "\"max_voltage\":%.2f,"
-        "\"max_water_temp\":%.2f,"
-        "\"max_plate_temp\":%.2f,"
-        "\"max_pump_speed_temp\":%.2f,"
-        "\"min_pump_speed_temp\":%.2f,"
-        "\"max_fan_speed_temp\":%.2f,"
-        "\"min_fan_speed_temp\":%.2f,"
+        "\"max_swr\":%d,"
+        "\"max_current\":%d,"
+        "\"max_voltage\":%d,"
+        "\"max_water_temp\":%d,"
+        "\"max_plate_temp\":%d,"
+        "\"max_pump_speed_temp\":%d,"
+        "\"min_pump_speed_temp\":%d,"
+        "\"max_fan_speed_temp\":%d,"
+        "\"min_fan_speed_temp\":%d,"
         "\"max_input_power\":%d,"
         "\"min_coeff\":%d,"
         "\"autoband\":%s,"
@@ -197,8 +197,8 @@ void sendStateData() {
     strcat(json, "\"pwm_pump\":"); itoa(state.pwm_pump,   temp, 10); strcat(json, temp); strcat(json, ",");
     strcat(json, "\"pwm_cooler\":"); itoa(state.pwm_cooler, temp, 10); strcat(json, temp); strcat(json, ",");
     strcat(json, "\"band\":\""); strcat(json, state.band); strcat(json, "\",");
-    strcat(json, "\"auto_pwm_pump\":"); strcat(json, state.auto_pwm_pump ? "true" : "false"); strcat(json, ",");
-    strcat(json, "\"auto_pwm_fan\":"); strcat(json, state.auto_pwm_fan  ? "true" : "false");
+    strcat(json, "\"auto_pwm_pump\":"); strcat(json, status.auto_pwm_pump ? "true" : "false"); strcat(json, ",");
+    strcat(json, "\"auto_pwm_fan\":"); strcat(json, status.auto_pwm_fan  ? "true" : "false");
     strcat(json, "}}");
 
     Serial1.println(json);
