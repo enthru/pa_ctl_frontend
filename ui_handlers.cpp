@@ -6,6 +6,8 @@
 // All display operations go through initDisplay() and the callbacks below.
 #include <PINS_JC4827W543.h>
 
+extern bool warningDismissed;
+
 // ─── Display init ─────────────────────────────────────────────────────────────
 
 bool initDisplay() {
@@ -159,7 +161,6 @@ void bandOpened(lv_event_t * /*e*/) {
 
 void resetAlert(lv_event_t *e) {
     lv_obj_t *btn = lv_event_get_target_obj(e);
-    lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_remove_flag(btn, LV_OBJ_FLAG_CLICKABLE);
 
     if (status.alarm) {
@@ -169,12 +170,17 @@ void resetAlert(lv_event_t *e) {
         sendStateData();
     }
 
+    warningDismissed = true;
     lv_label_set_text(ui_alertReason, "Delaying...");
 
     lv_timer_t *t = lv_timer_create([](lv_timer_t *timer) {
+        lv_obj_t *b = (lv_obj_t *)lv_timer_get_user_data(timer);
+        lv_obj_add_flag(b, LV_OBJ_FLAG_CLICKABLE);  // восстановить
         lv_timer_del(timer);
-        lv_scr_load(ui_main);
-    }, 1000, NULL);
+        if (!status.alarm) {
+            lv_scr_load(ui_main);
+        }
+    }, 1000, btn);
     lv_timer_set_repeat_count(t, 1);
 }
 

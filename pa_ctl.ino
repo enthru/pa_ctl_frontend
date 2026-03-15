@@ -125,9 +125,14 @@ void loop() {
     // ── OTA + Web ─────────────────────────────────────────────────────────────
     if (otaStarted)    ArduinoOTA.handle();
     if (serverStarted) server.handleClient();
-
+    
+    static bool prev_alarm = false;
+    if (status.alarm && !prev_alarm) {
+        warningDismissed = false;
+    }
+    prev_alarm = status.alarm;
     // ── Alarm screen routing ──────────────────────────────────────────────────
-    if (status.alarm && lv_scr_act() != ui_warning) {
+    if (status.alarm && lv_scr_act() != ui_warning && !warningDismissed) {
         const char* alarmText = "Unknown error";
 
         if      (String(status.alert_reason) == "water_temp") alarmText = "Water temperature too high";
@@ -141,7 +146,6 @@ void loop() {
 
         lv_label_set_text(ui_alertReason, alarmText);
         lv_scr_load(ui_warning);
-        warningDismissed = false;
     }
     
     // reset via web
