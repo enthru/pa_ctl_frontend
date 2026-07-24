@@ -66,6 +66,10 @@ unsigned long responseRequestTime = 0;
 int          responseRetryCount   = 0;
 const int    MAX_RETRIES          = 5;
 const unsigned long RETRY_INTERVAL = 300;
+// Settings/calibration writes make the backend deaf (~1s EEPROM commit), so
+// their retries must wait longer than ordinary requests. Replaces the old
+// blocking delay(1000) that used to sit inside the send functions.
+const unsigned long SEND_RETRY_INTERVAL = 1000;
 
 // Explicit "fresh data arrived" flags for the blocking request helpers.
 volatile bool settingsReceived    = false;

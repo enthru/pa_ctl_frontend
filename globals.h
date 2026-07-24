@@ -105,6 +105,7 @@ extern unsigned long responseRequestTime;
 extern int          responseRetryCount;
 extern const int    MAX_RETRIES;
 extern const unsigned long RETRY_INTERVAL;
+extern const unsigned long SEND_RETRY_INTERVAL;
 
 // Set true by processSettingsData()/processCalibrationData() when a fresh
 // reply is parsed; used by the blocking request helpers to detect success.

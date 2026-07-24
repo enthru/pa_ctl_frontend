@@ -71,6 +71,28 @@ void debugCalibrationData() {
     Serial.println("=======================");
 }
 
+// ─── Backend-access gating ────────────────────────────────────────────────────
+// The backend goes deaf for ~1s while it commits settings/calibration to EEPROM.
+// These predicates replace the old blocking delay()s: instead of freezing the
+// whole controller, every user/web action that talks to the backend checks them
+// first and simply declines when it is not safe to send.
+
+bool backendBusy() {
+    // A transaction is already outstanding — don't start another one.
+    return waitingForResponse != RESPONSE_NONE;
+}
+
+bool backendDeaf() {
+    // Backend is mid EEPROM write; anything sent now is lost.
+    return waitingForResponse == RESPONSE_SETTINGS_SEND ||
+           waitingForResponse == RESPONSE_CALIBRATION_SEND;
+}
+
+bool isTransmitting() {
+    // While keyed, no configuration traffic may go to the backend.
+    return state.ptt || status.ptt;
+}
+
 // ─── ACK parser ───────────────────────────────────────────────────────────────
 
 static bool parseAckResponse(const char* json, ResponseType expectedResponse) {
@@ -170,8 +192,11 @@ void sendSettingsData() {
 #endif
     Serial1.println(json);
     waitingForResponse  = RESPONSE_SETTINGS_SEND;
-    delay(1000);
     responseRequestTime = millis();
+    // No blocking delay here: the backend's ~1s EEPROM commit is absorbed by
+    // SEND_RETRY_INTERVAL in handleResponseRetry(), and new commands are held
+    // off by the backendBusy() guard at every entry point instead of by freezing
+    // the whole controller.
 }
 
 void sendStateData(bool trackResponse) {
@@ -264,13 +289,15 @@ void sendCalibrationData() {
 #endif
     Serial1.println(json);
     waitingForResponse  = RESPONSE_CALIBRATION_SEND;
-    delay(1000);
     responseRequestTime = millis();
+    // See sendSettingsData(): the EEPROM commit window is handled by
+    // SEND_RETRY_INTERVAL + the backendBusy() guards, not by blocking here.
 }
 
 // ─── Blocking request helpers ─────────────────────────────────────────────────
 
 bool requestAndWaitForSettings(unsigned long timeout) {
+    if (isTransmitting()) return false;   // no backend traffic while keyed
 #if DEBUG
     Serial.println("[DEBUG] Starting settings request with waiting");
 #endif
@@ -298,6 +325,7 @@ bool requestAndWaitForSettings(unsigned long timeout) {
 }
 
 bool requestAndWaitForCalibration(unsigned long timeout) {
+    if (isTransmitting()) return false;   // no backend traffic while keyed
 #if DEBUG
     Serial.println("[DEBUG] Starting calibration request with waiting");
 #endif
@@ -440,7 +468,13 @@ void handleUARTData() {
 void handleResponseRetry() {
     if (waitingForResponse == RESPONSE_NONE) return;
 
-    if (millis() - responseRequestTime >= RETRY_INTERVAL) {
+    // EEPROM writes need the longer window; everything else uses the fast one.
+    unsigned long interval =
+        (waitingForResponse == RESPONSE_SETTINGS_SEND ||
+         waitingForResponse == RESPONSE_CALIBRATION_SEND)
+        ? SEND_RETRY_INTERVAL : RETRY_INTERVAL;
+
+    if (millis() - responseRequestTime >= interval) {
         if (responseRetryCount < MAX_RETRIES) {
             responseRetryCount++;
             switch (waitingForResponse) {

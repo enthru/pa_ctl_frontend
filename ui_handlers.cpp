@@ -196,6 +196,7 @@ void settingsNext(lv_event_t * /*e*/) {
 }
 
 void saveSettings(lv_event_t * /*e*/) {
+    if (backendBusy() || isTransmitting()) return;   // EEPROM write: not while busy or transmitting
     settings.max_pump_speed_temp = lv_slider_get_value(ui_maxPumpSpdTmpSlider);
     settings.min_pump_speed_temp = lv_slider_get_value(ui_minPumpSpdTmpSlider);
     settings.max_fan_speed_temp  = lv_slider_get_value(ui_maxFanSpdTmpSlider);
@@ -217,6 +218,10 @@ void saveSettings(lv_event_t * /*e*/) {
 }
 
 void toggleAutoBand(lv_event_t * /*e*/) {
+    if (backendBusy() || isTransmitting()) {
+        set_switch_state(ui_autoSelectSwitch, settings.autoband);   // revert the visual toggle
+        return;
+    }
     settings.autoband = lv_obj_get_state(ui_autoSelectSwitch) & LV_STATE_CHECKED;
     sendSettingsData();
 }
@@ -225,6 +230,7 @@ void toggleAutoBand(lv_event_t * /*e*/) {
 
 void set_band(lv_event_t *e) {
     lv_obj_t *target = lv_event_get_target_obj(e);
+    if (backendBusy() || isTransmitting()) return;   // no band change mid-transaction or during TX
     memset(state.band, 0, sizeof(state.band));
 
     struct { lv_obj_t **btn; const char *band; } map[] = {
@@ -248,6 +254,10 @@ void set_band(lv_event_t *e) {
 
 void enableAmp(lv_event_t *e) {
     lv_obj_t *sw = (lv_obj_t *)lv_event_get_target(e);
+    if (backendBusy() || isTransmitting()) {
+        set_switch_state(sw, state.state);   // revert the visual toggle
+        return;
+    }
     state.state  = lv_obj_has_state(sw, LV_STATE_CHECKED);
     Serial.println(state.state ? "Amplifier: ON" : "Amplifier: OFF");
     sendStateData();
@@ -255,6 +265,11 @@ void enableAmp(lv_event_t *e) {
 
 void togglePTT(lv_event_t *e) {
     lv_obj_t *sw = (lv_obj_t *)lv_event_get_target(e);
+
+    // PTT is the TX control itself, so it is NOT blocked during TX — you must
+    // always be able to unkey. Only refuse while the backend is mid EEPROM
+    // write, when the command would be lost anyway.
+    if (backendDeaf()) return;
 
     if (state.ptt) {
         state.ptt = false;

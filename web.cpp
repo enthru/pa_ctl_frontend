@@ -118,11 +118,9 @@ void handleResetAlert() {
     status.ptt   = false; state.ptt    = false;
     state.state  = false; status.state = false;
     sendStateData();
-    unsigned long start = millis();
-    while (millis() - start < 1000) {
-        lv_timer_handler();
-        delay(5);
-    }
+    // Reset is a safety action and is always allowed. Respond immediately; the
+    // screen returns to ui_main via the alarm-routing logic in loop() once the
+    // backend confirms — no need to block the web handler while it settles.
     server.send(200, "text/plain", "OK");
 }
 
@@ -288,6 +286,7 @@ void handleBandPage() {
 
 void handleSetBand() {
     if (!server.hasArg("band")) { server.send(400, "text/plain", "Missing band parameter"); return; }
+    if (backendBusy() || isTransmitting()) { server.send(409, "text/plain", "Backend busy or transmitting"); return; }
     String band = server.arg("band");
     memset(state.band,  0, sizeof(state.band));
     memset(status.band, 0, sizeof(status.band));
@@ -302,6 +301,7 @@ void handleSetBand() {
 
 void handleSetState() {
     if (!server.hasArg("state")) { server.send(400, "text/plain", "Missing state parameter"); return; }
+    if (backendBusy() || isTransmitting()) { server.send(409, "text/plain", "Backend busy or transmitting"); return; }
     state.state = (server.arg("state") == "true");
     Serial.print("State set to: "); Serial.println(state.state ? "ON" : "OFF");
     sendStateData();
@@ -451,6 +451,7 @@ void handleGetSettings() {
 
 void handleSaveSettings() {
     if (server.method() != HTTP_POST) { server.send(405, "text/plain", "Method Not Allowed"); return; }
+    if (backendBusy() || isTransmitting()) { server.send(409, "text/plain", "Backend busy or transmitting"); return; }
     if (server.hasArg("max_swr"))            settings.max_swr             = server.arg("max_swr").toInt();
     if (server.hasArg("max_current"))        settings.max_current         = server.arg("max_current").toInt();
     if (server.hasArg("max_voltage"))        settings.max_voltage         = server.arg("max_voltage").toInt();
@@ -600,6 +601,7 @@ void handleGetCalibration() {
 
 void handleSaveCalibration() {
     if (server.method() != HTTP_POST) { server.send(405, "text/plain", "Method Not Allowed"); return; }
+    if (backendBusy() || isTransmitting()) { server.send(409, "text/plain", "Backend busy or transmitting"); return; }
     if (server.hasArg("low_fwd_coeff"))  calibration.low_fwd_coeff  = server.arg("low_fwd_coeff").toFloat();
     if (server.hasArg("low_rev_coeff"))  calibration.low_rev_coeff  = server.arg("low_rev_coeff").toFloat();
     if (server.hasArg("low_ifwd_coeff")) calibration.low_ifwd_coeff = server.arg("low_ifwd_coeff").toFloat();
