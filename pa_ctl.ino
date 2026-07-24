@@ -134,15 +134,16 @@ void loop() {
     // ── Alarm screen routing ──────────────────────────────────────────────────
     if (status.alarm && lv_scr_act() != ui_warning && !warningDismissed) {
         const char* alarmText = "Unknown error";
+        const char* reason = status.alert_reason;
 
-        if      (String(status.alert_reason) == "water_temp") alarmText = "Water temperature too high";
-        else if (String(status.alert_reason) == "plate_temp") alarmText = "Waterblock temperature too high";
-        else if (String(status.alert_reason) == "coeff")      alarmText = "Low efficiency";
-        else if (String(status.alert_reason) == "swr")        alarmText = "High SWR";
-        else if (String(status.alert_reason) == "voltage")    alarmText = "Overvoltage";
-        else if (String(status.alert_reason) == "current")    alarmText = "Current too high";
-        else if (String(status.alert_reason) == "ipower")     alarmText = "High input power";
-        else if (String(status.alert_reason) == "band")       alarmText = "Band error";
+        if      (strcmp(reason, "water_temp") == 0) alarmText = "Water temperature too high";
+        else if (strcmp(reason, "plate_temp") == 0) alarmText = "Waterblock temperature too high";
+        else if (strcmp(reason, "coeff")      == 0) alarmText = "Low efficiency";
+        else if (strcmp(reason, "swr")        == 0) alarmText = "High SWR";
+        else if (strcmp(reason, "voltage")    == 0) alarmText = "Overvoltage";
+        else if (strcmp(reason, "current")    == 0) alarmText = "Current too high";
+        else if (strcmp(reason, "ipower")     == 0) alarmText = "High input power";
+        else if (strcmp(reason, "band")       == 0) alarmText = "Band error";
 
         lv_label_set_text(ui_alertReason, alarmText);
         lv_scr_load(ui_warning);

@@ -360,7 +360,8 @@ static void processParsedData() {
     Serial.println("[DEBUG] Processing status data");
     debugStatusData();
 #endif
-    if (strcmp(getCurrentScreenName(), "main") == 0) {
+    // Direct pointer compare — avoids building a screen-name string and strcmp'ing it.
+    if (lv_scr_act() == ui_main) {
         // Format into a stack buffer instead of temporary Arduino Strings to
         // avoid heap churn/fragmentation on this per-frame hot path.
         char buf[24];
@@ -368,11 +369,18 @@ static void processParsedData() {
         snprintf(buf, sizeof(buf), "%.2fW", status.fwd);        lv_label_set_text(ui_pwrTxt, buf);
         lv_bar_set_value(ui_pwrBar, int(status.fwd), LV_ANIM_ON);
 
-        lv_color_t pttColor = status.ptt ? lv_color_hex(0xFF0000) : lv_color_hex(0x007AFF);
-        lv_obj_set_style_bg_color(ui_pwrBar,  pttColor, LV_PART_INDICATOR);
-        lv_obj_set_style_bg_color(ui_menuBtn, pttColor, LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_bg_color(ui_Button1, pttColor, LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_bg_color(ui_Button2, pttColor, LV_PART_MAIN | LV_STATE_DEFAULT);
+        // PTT rarely changes but status frames arrive several times a second.
+        // lv_obj_set_style_bg_color invalidates + repaints unconditionally, so
+        // only recolour the four widgets when the PTT state actually flips.
+        static int prevPtt = -1;
+        if ((int)status.ptt != prevPtt) {
+            prevPtt = status.ptt;
+            lv_color_t pttColor = status.ptt ? lv_color_hex(0xFF0000) : lv_color_hex(0x007AFF);
+            lv_obj_set_style_bg_color(ui_pwrBar,  pttColor, LV_PART_INDICATOR);
+            lv_obj_set_style_bg_color(ui_menuBtn, pttColor, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_bg_color(ui_Button1, pttColor, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_set_style_bg_color(ui_Button2, pttColor, LV_PART_MAIN | LV_STATE_DEFAULT);
+        }
 
         snprintf(buf, sizeof(buf), "%.2f",  status.swr);        lv_label_set_text(ui_swrValue, buf);
         snprintf(buf, sizeof(buf), "%.2fW", status.ref);        lv_label_set_text(ui_refTxt,   buf);
@@ -444,14 +452,14 @@ void handleUARTData() {
                     }
                 }
 
-                // Parse data types
-                if (parseSettingsJson(receivedData)) {
+                // Parse data types. Status is by far the most frequent message,
+                // so try it first to spare the common path two failed scans.
+                if (parseStatusJson(receivedData)) {
+                    processParsedData();
+                } else if (parseSettingsJson(receivedData)) {
                     processSettingsData();
                 } else if (parseCalibrationJson(receivedData)) {
                     processCalibrationData();
-                } else {
-                    if (parseStatusJson(receivedData))
-                        processParsedData();
                 }
 
                 dataIndex = 0;
