@@ -89,7 +89,9 @@ bool backendDeaf() {
 }
 
 bool isTransmitting() {
-    // While keyed, no configuration traffic may go to the backend.
+    // While keyed, configuration *changes* (settings/calibration save, band,
+    // amp enable) are refused. Telemetry RX, config reads and PTT control are
+    // still allowed.
     return state.ptt || status.ptt;
 }
 
@@ -297,7 +299,6 @@ void sendCalibrationData() {
 // ─── Blocking request helpers ─────────────────────────────────────────────────
 
 bool requestAndWaitForSettings(unsigned long timeout) {
-    if (isTransmitting()) return false;   // no backend traffic while keyed
 #if DEBUG
     Serial.println("[DEBUG] Starting settings request with waiting");
 #endif
@@ -325,7 +326,6 @@ bool requestAndWaitForSettings(unsigned long timeout) {
 }
 
 bool requestAndWaitForCalibration(unsigned long timeout) {
-    if (isTransmitting()) return false;   // no backend traffic while keyed
 #if DEBUG
     Serial.println("[DEBUG] Starting calibration request with waiting");
 #endif
