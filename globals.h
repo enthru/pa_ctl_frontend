@@ -10,8 +10,12 @@
 #include <ArduinoOTA.h>
 #include <WebServer.h>
 
-// ─── Debug flags ──────────────────────────────────────────────────────────────
-#define DEBUG       0
+// ─── Logging ──────────────────────────────────────────────────────────────────
+// LOG_WARN/INFO/TRACE macros and LOG_LEVEL live in log.h so translation units
+// that only need logging (e.g. JSONParser) don't pull in the heavy deps below.
+#include "log.h"
+
+// ─── Test auto-request mode ───────────────────────────────────────────────────
 #define TEST_UART   0
 
 // ─── NVS keys ─────────────────────────────────────────────────────────────────

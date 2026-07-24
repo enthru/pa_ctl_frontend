@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <Arduino.h>
+#include "log.h"
 
 extern StatusData status;
 extern SettingsData settings;
@@ -167,16 +168,8 @@ int parseStatusJson(char* jsonString) {
         return 0;
     }
 
-#if DEBUG
-    Serial.print("[DEBUG] Parsing status object: ");
-    Serial.println(statusObj);
-#endif
-
+    LOG_TRACE("Parsing status object: %s", statusObj);
     forEachPair(statusObj, statusPair);
-
-#if DEBUG
-    Serial.println("[DEBUG] Status parsing completed successfully");
-#endif
     return 1;
 }
 
@@ -205,16 +198,8 @@ int parseCalibrationJson(char* jsonString) {
         return 0;
     }
 
-#if DEBUG
-    Serial.print("[DEBUG] Parsing calibration object: ");
-    Serial.println(calibrationObj);
-#endif
-
+    LOG_TRACE("Parsing calibration object: %s", calibrationObj);
     forEachPair(calibrationObj, calibrationPair);
-
-#if DEBUG
-    Serial.println("[DEBUG] Calibration parsing completed successfully");
-#endif
     return 1;
 }
 
@@ -245,15 +230,7 @@ int parseSettingsJson(char* jsonString) {
         return 0;
     }
 
-#if DEBUG
-    Serial.print("[DEBUG] Parsing settings object: ");
-    Serial.println(settingsObj);
-#endif
-
+    LOG_TRACE("Parsing settings object: %s", settingsObj);
     forEachPair(settingsObj, settingsPair);
-
-#if DEBUG
-    Serial.println("[DEBUG] Settings parsing completed successfully");
-#endif
     return 1;
 }

@@ -292,7 +292,7 @@ void handleSetBand() {
     memset(status.band, 0, sizeof(status.band));
     strncpy(state.band,  band.c_str(), sizeof(state.band)  - 1);
     strncpy(status.band, band.c_str(), sizeof(status.band) - 1);
-    Serial.print("Band set to: "); Serial.println(state.band);
+    LOG_INFO("Band set to %s via web", state.band);
     sendStateData();
     server.send(200, "text/plain", "OK");
 }
@@ -303,7 +303,7 @@ void handleSetState() {
     if (!server.hasArg("state")) { server.send(400, "text/plain", "Missing state parameter"); return; }
     if (backendBusy() || isTransmitting()) { server.send(409, "text/plain", "Backend busy or transmitting"); return; }
     state.state = (server.arg("state") == "true");
-    Serial.print("State set to: "); Serial.println(state.state ? "ON" : "OFF");
+    LOG_INFO("Amplifier set to %s via web", state.state ? "ON" : "OFF");
     sendStateData();
     server.send(200, "text/plain", "OK");
 }

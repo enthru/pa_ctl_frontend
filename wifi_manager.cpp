@@ -3,29 +3,31 @@
 void loadWiFiCredentials() {
     ssid     = preferences.getString(SSID_KEY,     "");
     password = preferences.getString(PASSWORD_KEY, "");
-    Serial.println("Loaded WiFi settings:");
-    Serial.print("SSID: ");    Serial.println(ssid.length()     > 0 ? ssid     : "not set");
-    Serial.print("Password: ");Serial.println(password.length() > 0 ? password : "not set");
+    // Never print the password — it went to the serial log in plaintext on every
+    // boot. Report only whether each credential is set.
+    LOG_INFO("Loaded WiFi: SSID %s, password %s",
+             ssid.length()     > 0 ? ssid.c_str() : "(not set)",
+             password.length() > 0 ? "(set)"      : "(not set)");
 }
 
 void saveWiFiCredentials(const char* newSSID, const char* newPassword) {
     if (newSSID == nullptr || strlen(newSSID) == 0) {
-        Serial.println("Error: SSID cannot be empty!");
+        LOG_WARN("SSID cannot be empty, not saving");
         return;
     }
     preferences.putString(SSID_KEY,     newSSID);
     preferences.putString(PASSWORD_KEY, newPassword);
     ssid     = newSSID;
     password = newPassword;
-    Serial.println("WiFi settings saved!");
+    LOG_INFO("WiFi settings saved");
 }
 
 void connectToWiFi() {
     if (ssid.length() == 0) {
-        Serial.println("Error: SSID not set!");
+        LOG_WARN("SSID not set, cannot connect");
         return;
     }
-    Serial.print("Connecting to WiFi: "); Serial.println(ssid);
+    LOG_INFO("Connecting to WiFi: %s", ssid.c_str());
     WiFi.disconnect();
     delay(10);
     WiFi.begin(ssid.c_str(), password.c_str());
@@ -34,27 +36,22 @@ void connectToWiFi() {
 }
 
 void printWiFiStatus() {
-    Serial.println("\n=== WiFi Status ===");
-    Serial.print("SSID: "); Serial.println(WiFi.SSID());
-    Serial.print("Status: ");
     switch (WiFi.status()) {
         case WL_CONNECTED:
-            Serial.println("Connected");
-            Serial.print("IP: ");   Serial.println(WiFi.localIP());
-            Serial.print("RSSI: "); Serial.print(WiFi.RSSI()); Serial.println(" dBm");
+            LOG_INFO("WiFi connected: SSID %s, IP %s, RSSI %ld dBm",
+                     WiFi.SSID().c_str(), WiFi.localIP().toString().c_str(), (long)WiFi.RSSI());
             break;
-        case WL_NO_SSID_AVAIL:  Serial.println("Network not found");   break;
-        case WL_CONNECT_FAILED: Serial.println("Connection failed");    break;
-        case WL_IDLE_STATUS:    Serial.println("Idle");                 break;
-        case WL_DISCONNECTED:   Serial.println("Disconnected");         break;
-        default:                Serial.println("Unknown status");       break;
+        case WL_NO_SSID_AVAIL:  LOG_WARN("WiFi: network not found");   break;
+        case WL_CONNECT_FAILED: LOG_WARN("WiFi: connection failed");   break;
+        case WL_IDLE_STATUS:    LOG_INFO("WiFi: idle");                break;
+        case WL_DISCONNECTED:   LOG_INFO("WiFi: disconnected");        break;
+        default:                LOG_INFO("WiFi: status %d", WiFi.status()); break;
     }
-    Serial.println("===================\n");
 }
 
 void updateLVGLTextAreasWithSavedCredentials() {
     lv_textarea_set_text(ui_TextArea1, ssid.length()     > 0 ? ssid.c_str()     : "");
     lv_textarea_set_text(ui_TextArea3, password.length() > 0 ? password.c_str() : "");
-    Serial.println(ssid.length()     > 0 ? "SSID field populated"     : "SSID field cleared");
-    Serial.println(password.length() > 0 ? "Password field populated" : "Password field cleared");
+    LOG_TRACE("WiFi UI fields populated (ssid:%d pw:%d)",
+              ssid.length() > 0, password.length() > 0);
 }

@@ -12,7 +12,7 @@ extern bool warningDismissed;
 
 bool initDisplay() {
     if (!gfx->begin()) {
-        Serial.println("gfx->begin() failed!");
+        LOG_WARN("gfx->begin() failed!");
         return false;
     }
     pinMode(GFX_BL, OUTPUT);
@@ -106,9 +106,7 @@ void mainRightLoaded(lv_event_t * /*e*/) {
 }
 
 void protectionOpened(lv_event_t * /*e*/) {
-#if DEBUG
-    Serial.println("[DEBUG] Sending settings request command");
-#endif
+    LOG_INFO("Opening protection screen, requesting settings");
     if (!requestAndWaitForSettings(300)) return;
 
     lv_label_set_text(ui_maxSWR,          String(settings.max_swr).c_str());
@@ -210,9 +208,7 @@ void saveSettings(lv_event_t * /*e*/) {
     if (settings.max_fan_speed_temp < settings.min_fan_speed_temp)
         settings.max_fan_speed_temp = settings.min_fan_speed_temp;
 
-#if DEBUG
-    Serial.println("[DEBUG] Settings saved from UI to variables:");
-#endif
+    LOG_INFO("Settings saved from UI, pushing to backend");
     sendStateData(false);   // fire-and-forget; the settings send below is tracked
     sendSettingsData();
 }
@@ -244,12 +240,12 @@ void set_band(lv_event_t *e) {
     for (auto &m : map) {
         if (target == *m.btn) {
             strncpy(state.band, m.band, sizeof(state.band) - 1);
-            Serial.print("Band set: "); Serial.println(state.band);
+            LOG_INFO("Band set: %s", state.band);
             sendStateData();
             return;
         }
     }
-    Serial.println("Unknown band button!");
+    LOG_WARN("Unknown band button!");
 }
 
 void enableAmp(lv_event_t *e) {
@@ -259,7 +255,7 @@ void enableAmp(lv_event_t *e) {
         return;
     }
     state.state  = lv_obj_has_state(sw, LV_STATE_CHECKED);
-    Serial.println(state.state ? "Amplifier: ON" : "Amplifier: OFF");
+    LOG_INFO("Amplifier: %s", state.state ? "ON" : "OFF");
     sendStateData();
 }
 
@@ -274,11 +270,11 @@ void togglePTT(lv_event_t *e) {
     if (state.ptt) {
         state.ptt = false;
         lv_obj_set_style_bg_color(sw, lv_color_hex(0x2196F3), LV_PART_INDICATOR);
-        Serial.println("PTT: OFF");
+        LOG_INFO("PTT: OFF");
     } else if (state.state) {
         state.ptt = true;
         lv_obj_set_style_bg_color(sw, lv_color_hex(0xFF0000), LV_PART_INDICATOR);
-        Serial.println("PTT: ON");
+        LOG_INFO("PTT: ON");
     }
     sendStateData();
 }
@@ -291,7 +287,7 @@ static void saveWiFiSettingsEventHandler(lv_event_t *e) {
         const char* password_text = lv_textarea_get_text(ui_TextArea3);
         saveWiFiCredentials(ssid_text, password_text);
         connectToWiFi();
-        Serial.println("WiFi settings saved via LVGL button!");
+        LOG_INFO("WiFi settings saved via LVGL button");
     }
 }
 

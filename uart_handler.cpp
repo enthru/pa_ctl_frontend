@@ -10,65 +10,47 @@ static bool parseAckResponse(const char* json, ResponseType expectedResponse);
 
 // ─── Debug helpers ────────────────────────────────────────────────────────────
 
+// These dumps are one-shot diagnostics (a settings/calibration frame just
+// arrived, or a manual request completed). They are NOT called per status
+// frame — that would flood the UART hot path. Each line is TRACE-gated, so at
+// LOG_LEVEL < 3 the whole body compiles to nothing.
 void debugStatusData() {
-    if (waitingForResponse != RESPONSE_NONE) return;
-    Serial.println("=== STATUS DATA ===");
-    Serial.print("FWD: ");         Serial.println(status.fwd);
-    Serial.print("REF: ");         Serial.println(status.ref);
-    Serial.print("TRX FWD: ");     Serial.println(status.trxfwd);
-    Serial.print("SWR: ");         Serial.println(status.swr);
-    Serial.print("Current: ");     Serial.println(status.current);
-    Serial.print("Voltage: ");     Serial.println(status.voltage);
-    Serial.print("Water temp: ");  Serial.println(status.water_temp);
-    Serial.print("Plate temp: ");  Serial.println(status.plate_temp);
-    Serial.print("Coeff: ");       Serial.println(status.coeff);
-    Serial.print("Alarm: ");       Serial.println(status.alarm ? "true" : "false");
-    Serial.print("Alert reason: ");Serial.println(status.alert_reason);
-    Serial.print("State: ");       Serial.println(status.state  ? "true" : "false");
-    Serial.print("PTT: ");         Serial.println(status.ptt    ? "true" : "false");
-    Serial.print("Band: ");        Serial.println(status.band);
-    Serial.print("PWM Pump: ");    Serial.println(status.pwm_pump);
-    Serial.print("PWM Cooler: ");  Serial.println(status.pwm_cooler);
-    Serial.print("Auto PWM Pump: ");Serial.println(status.auto_pwm_pump ? "true" : "false");
-    Serial.print("Auto PWM Fan: "); Serial.println(status.auto_pwm_fan  ? "true" : "false");
-    Serial.println("===================");
+    LOG_TRACE("=== STATUS DATA ===");
+    LOG_TRACE("FWD: %.2f  REF: %.2f  TRX FWD: %.2f  SWR: %.2f",
+              status.fwd, status.ref, status.trxfwd, status.swr);
+    LOG_TRACE("Current: %.2f  Voltage: %.2f  Water: %.1f  Plate: %.1f",
+              status.current, status.voltage, status.water_temp, status.plate_temp);
+    LOG_TRACE("Coeff: %.1f  Band: %s  Alert: %s", status.coeff, status.band, status.alert_reason);
+    LOG_TRACE("Alarm: %d  State: %d  PTT: %d", status.alarm, status.state, status.ptt);
+    LOG_TRACE("PWM Pump: %d  Cooler: %d  AutoPump: %d  AutoFan: %d",
+              status.pwm_pump, status.pwm_cooler, status.auto_pwm_pump, status.auto_pwm_fan);
+    LOG_TRACE("===================");
 }
 
 void debugSettingsData() {
-    Serial.println("=== SETTINGS DATA ===");
-    Serial.print("Max SWR: ");            Serial.println(settings.max_swr);
-    Serial.print("Max Current: ");        Serial.println(settings.max_current);
-    Serial.print("Max Voltage: ");        Serial.println(settings.max_voltage);
-    Serial.print("Max Water Temp: ");     Serial.println(settings.max_water_temp);
-    Serial.print("Max Plate Temp: ");     Serial.println(settings.max_plate_temp);
-    Serial.print("Max Pump Speed Temp: ");Serial.println(settings.max_pump_speed_temp);
-    Serial.print("Min Pump Speed Temp: ");Serial.println(settings.min_pump_speed_temp);
-    Serial.print("Max Fan Speed Temp: "); Serial.println(settings.max_fan_speed_temp);
-    Serial.print("Min Fan Speed Temp: "); Serial.println(settings.min_fan_speed_temp);
-    Serial.print("Min Coeff: ");          Serial.println(settings.min_coeff);
-    Serial.print("Max input power: ");    Serial.println(settings.max_input_power);
-    Serial.print("Autoband: ");           Serial.println(settings.autoband ? "true" : "false");
-    Serial.print("Default Band: ");       Serial.println(settings.default_band);
-    Serial.println("====================");
+    LOG_TRACE("=== SETTINGS DATA ===");
+    LOG_TRACE("Max SWR: %d  Current: %d  Voltage: %d",
+              settings.max_swr, settings.max_current, settings.max_voltage);
+    LOG_TRACE("Temp max water/plate: %d/%d", settings.max_water_temp, settings.max_plate_temp);
+    LOG_TRACE("Pump temp min/max: %d/%d", settings.min_pump_speed_temp, settings.max_pump_speed_temp);
+    LOG_TRACE("Fan temp min/max: %d/%d", settings.min_fan_speed_temp, settings.max_fan_speed_temp);
+    LOG_TRACE("Min Coeff: %d  Max input power: %d", settings.min_coeff, settings.max_input_power);
+    LOG_TRACE("Autoband: %d  Default Band: %s", settings.autoband, settings.default_band);
+    LOG_TRACE("====================");
 }
 
 void debugCalibrationData() {
-    Serial.println("=== CALIBRATION DATA ===");
-    Serial.print("Low FWD Coeff: ");  Serial.println(calibration.low_fwd_coeff,  4);
-    Serial.print("Low REV Coeff: ");  Serial.println(calibration.low_rev_coeff,  4);
-    Serial.print("Low IFWD Coeff: "); Serial.println(calibration.low_ifwd_coeff, 4);
-    Serial.print("Mid FWD Coeff: ");  Serial.println(calibration.mid_fwd_coeff,  4);
-    Serial.print("Mid REV Coeff: ");  Serial.println(calibration.mid_rev_coeff,  4);
-    Serial.print("Mid IFWD Coeff: "); Serial.println(calibration.mid_ifwd_coeff, 4);
-    Serial.print("High FWD Coeff: "); Serial.println(calibration.high_fwd_coeff, 4);
-    Serial.print("High REV Coeff: "); Serial.println(calibration.high_rev_coeff, 4);
-    Serial.print("High IFWD Coeff: ");Serial.println(calibration.high_ifwd_coeff,4);
-    Serial.print("Voltage Coeff: ");  Serial.println(calibration.voltage_coeff,  4);
-    Serial.print("Current Coeff: ");  Serial.println(calibration.current_coeff,  4);
-    Serial.print("Reserve Coeff: ");  Serial.println(calibration.rsrv_coeff,     4);
-    Serial.print("ACS zero: ");       Serial.println(calibration.acs_zero,       4);
-    Serial.print("ACS sens: ");       Serial.println(calibration.acs_sens,       4);
-    Serial.println("=======================");
+    LOG_TRACE("=== CALIBRATION DATA ===");
+    LOG_TRACE("Low  FWD/REV/IFWD: %.4f/%.4f/%.4f",
+              calibration.low_fwd_coeff, calibration.low_rev_coeff, calibration.low_ifwd_coeff);
+    LOG_TRACE("Mid  FWD/REV/IFWD: %.4f/%.4f/%.4f",
+              calibration.mid_fwd_coeff, calibration.mid_rev_coeff, calibration.mid_ifwd_coeff);
+    LOG_TRACE("High FWD/REV/IFWD: %.4f/%.4f/%.4f",
+              calibration.high_fwd_coeff, calibration.high_rev_coeff, calibration.high_ifwd_coeff);
+    LOG_TRACE("Voltage: %.4f  Current: %.4f  Reserve: %.4f",
+              calibration.voltage_coeff, calibration.current_coeff, calibration.rsrv_coeff);
+    LOG_TRACE("ACS zero/sens: %.4f/%.4f", calibration.acs_zero, calibration.acs_sens);
+    LOG_TRACE("=======================");
 }
 
 // ─── Backend-access gating ────────────────────────────────────────────────────
@@ -99,21 +81,15 @@ bool isTransmitting() {
 
 static bool parseAckResponse(const char* json, ResponseType expectedResponse) {
     if (strstr(json, "\"response\":\"settings updated\"") != NULL) {
-#if DEBUG
-        Serial.println("Settings update RESPONSE!");
-#endif
+        LOG_TRACE("ACK: settings updated");
         return expectedResponse == RESPONSE_SETTINGS_SEND;
     }
     if (strstr(json, "\"response\":\"state updated\"") != NULL) {
-#if DEBUG
-        Serial.println("Status update RESPONSE!");
-#endif
+        LOG_TRACE("ACK: state updated");
         return expectedResponse == RESPONSE_STATE_SEND;
     }
     if (strstr(json, "\"response\":\"calibration updated\"") != NULL) {
-#if DEBUG
-        Serial.println("Calibration update RESPONSE!");
-#endif
+        LOG_TRACE("ACK: calibration updated");
         return expectedResponse == RESPONSE_CALIBRATION_SEND;
     }
     return false;
@@ -122,39 +98,20 @@ static bool parseAckResponse(const char* json, ResponseType expectedResponse) {
 // ─── Send functions ───────────────────────────────────────────────────────────
 
 void sendStatusRequest() {
-#if DEBUG
-    if (waitingForResponse == RESPONSE_NONE)
-        Serial.println("[DEBUG] Sending status request command");
-#endif
+    // Fires several times a second — TRACE only, never INFO.
+    LOG_TRACE("Sending status request");
     Serial1.println("{\"command\":{\"value\":\"status\"}}");
 }
 
 void sendSettingsCommand() {
-#if DEBUG
-    Serial.print("[DEBUG] Sending settings request command");
-    if (responseRetryCount > 0) {
-        Serial.print(" (retry ");
-        Serial.print(responseRetryCount);
-        Serial.print("/");
-        Serial.print(MAX_RETRIES);
-        Serial.print(")");
-    }
-    Serial.println();
-#endif
+    LOG_INFO("Sending settings request");
     Serial1.println("{\"command\":{\"value\":\"settings\"}}");
     waitingForResponse   = RESPONSE_SETTINGS_REQUEST;
     responseRequestTime  = millis();
 }
 
 void sendSettingsData() {
-#if DEBUG
-    Serial.print("[DEBUG] Sending settings data");
-    if (responseRetryCount > 0) {
-        Serial.print(" (retry "); Serial.print(responseRetryCount);
-        Serial.print("/"); Serial.print(MAX_RETRIES); Serial.print(")");
-    }
-    Serial.println();
-#endif
+    LOG_INFO("Sending settings data");
 
     memcpy(&pendingSettings, &settings, sizeof(SettingsData));
 
@@ -189,9 +146,7 @@ void sendSettingsData() {
         settings.default_band
     );
 
-#if DEBUG
-    Serial.print("[DEBUG] JSON: "); Serial.println(json);
-#endif
+    LOG_TRACE("Settings JSON: %s", json);
     Serial1.println(json);
     waitingForResponse  = RESPONSE_SETTINGS_SEND;
     responseRequestTime = millis();
@@ -202,14 +157,7 @@ void sendSettingsData() {
 }
 
 void sendStateData(bool trackResponse) {
-#if DEBUG
-    Serial.print("[DEBUG] Sending state data");
-    if (responseRetryCount > 0) {
-        Serial.print(" (retry "); Serial.print(responseRetryCount);
-        Serial.print("/"); Serial.print(MAX_RETRIES); Serial.print(")");
-    }
-    Serial.println();
-#endif
+    LOG_INFO("Sending state data");
 
     memcpy(&pendingState, &state, sizeof(StateData));
 
@@ -229,9 +177,7 @@ void sendStateData(bool trackResponse) {
     strcat(json, "}}");
 
     Serial1.println(json);
-#if DEBUG
-    Serial.println(json);
-#endif
+    LOG_TRACE("State JSON: %s", json);
     if (trackResponse) {
         waitingForResponse  = RESPONSE_STATE_SEND;
         responseRequestTime = millis();
@@ -239,28 +185,14 @@ void sendStateData(bool trackResponse) {
 }
 
 void sendCalibrationCommand() {
-#if DEBUG
-    Serial.print("[DEBUG] Sending calibration request command");
-    if (responseRetryCount > 0) {
-        Serial.print(" (retry "); Serial.print(responseRetryCount);
-        Serial.print("/"); Serial.print(MAX_RETRIES); Serial.print(")");
-    }
-    Serial.println();
-#endif
+    LOG_INFO("Sending calibration request");
     Serial1.println("{\"command\":{\"value\":\"calibration\"}}");
     waitingForResponse  = RESPONSE_CALIBRATION_REQUEST;
     responseRequestTime = millis();
 }
 
 void sendCalibrationData() {
-#if DEBUG
-    Serial.print("[DEBUG] Sending calibration data");
-    if (responseRetryCount > 0) {
-        Serial.print(" (retry "); Serial.print(responseRetryCount);
-        Serial.print("/"); Serial.print(MAX_RETRIES); Serial.print(")");
-    }
-    Serial.println();
-#endif
+    LOG_INFO("Sending calibration data");
 
     char json[768];
     snprintf(json, sizeof(json),
@@ -286,9 +218,7 @@ void sendCalibrationData() {
         calibration.acs_zero,       calibration.acs_sens
     );
 
-#if DEBUG
-    Serial.print("[DEBUG] Calibration JSON: "); Serial.println(json);
-#endif
+    LOG_TRACE("Calibration JSON: %s", json);
     Serial1.println(json);
     waitingForResponse  = RESPONSE_CALIBRATION_SEND;
     responseRequestTime = millis();
@@ -299,9 +229,7 @@ void sendCalibrationData() {
 // ─── Blocking request helpers ─────────────────────────────────────────────────
 
 bool requestAndWaitForSettings(unsigned long timeout) {
-#if DEBUG
-    Serial.println("[DEBUG] Starting settings request with waiting");
-#endif
+    LOG_TRACE("Starting settings request with waiting");
     waitingForResponse  = RESPONSE_NONE;
     responseRetryCount  = 0;
     settingsReceived    = false;
@@ -311,24 +239,18 @@ bool requestAndWaitForSettings(unsigned long timeout) {
     while (millis() - startTime < timeout) {
         handleUARTData();
         if (settingsReceived) {
-#if DEBUG
-            Serial.println("[DEBUG] Settings received successfully");
+            LOG_INFO("Settings received");
             debugSettingsData();
-#endif
             return true;
         }
         handleResponseRetry();
     }
-#if DEBUG
-    Serial.println("[DEBUG] Settings request timeout");
-#endif
+    LOG_WARN("Settings request timeout after %lu ms", timeout);
     return false;
 }
 
 bool requestAndWaitForCalibration(unsigned long timeout) {
-#if DEBUG
-    Serial.println("[DEBUG] Starting calibration request with waiting");
-#endif
+    LOG_TRACE("Starting calibration request with waiting");
     waitingForResponse  = RESPONSE_NONE;
     responseRetryCount  = 0;
     calibrationReceived = false;
@@ -338,17 +260,13 @@ bool requestAndWaitForCalibration(unsigned long timeout) {
     while (millis() - startTime < timeout) {
         handleUARTData();
         if (calibrationReceived) {
-#if DEBUG
-            Serial.println("[DEBUG] Calibration received successfully");
+            LOG_INFO("Calibration received");
             debugCalibrationData();
-#endif
             return true;
         }
         handleResponseRetry();
     }
-#if DEBUG
-    Serial.println("[DEBUG] Calibration request timeout");
-#endif
+    LOG_WARN("Calibration request timeout after %lu ms", timeout);
     return false;
 }
 
@@ -356,10 +274,9 @@ bool requestAndWaitForCalibration(unsigned long timeout) {
 
 static void processParsedData() {
     if (waitingForResponse != RESPONSE_NONE) return;
-#if DEBUG
-    Serial.println("[DEBUG] Processing status data");
-    debugStatusData();
-#endif
+    // No per-frame dump here: status frames arrive several times a second and
+    // debugStatusData() on every one would flood serial and stall this hot
+    // path. Enable LOG_LEVEL 3 and dump on demand instead if you need it.
     // Direct pointer compare — avoids building a screen-name string and strcmp'ing it.
     if (lv_scr_act() == ui_main) {
         // Format into a stack buffer instead of temporary Arduino Strings to
@@ -399,10 +316,8 @@ static void processParsedData() {
 }
 
 static void processSettingsData() {
-#if DEBUG
-    Serial.println("[DEBUG] Processing settings data");
+    LOG_TRACE("Processing settings data");
     debugSettingsData();
-#endif
     settingsReceived = true;
     if (waitingForResponse == RESPONSE_SETTINGS_REQUEST) {
         waitingForResponse = RESPONSE_NONE;
@@ -411,10 +326,8 @@ static void processSettingsData() {
 }
 
 static void processCalibrationData() {
-#if DEBUG
-    Serial.println("[DEBUG] Processing calibration data");
+    LOG_TRACE("Processing calibration data");
     debugCalibrationData();
-#endif
     calibrationReceived = true;
     if (waitingForResponse == RESPONSE_CALIBRATION_REQUEST) {
         waitingForResponse = RESPONSE_NONE;
@@ -423,9 +336,7 @@ static void processCalibrationData() {
 }
 
 static void processAckResponse(ResponseType /*expectedResponse*/) {
-#if DEBUG
-    Serial.println("[DEBUG] Received ACK confirmation");
-#endif
+    LOG_TRACE("Received ACK confirmation");
     waitingForResponse = RESPONSE_NONE;
     responseRetryCount = 0;
 }
@@ -439,9 +350,7 @@ void handleUARTData() {
         if (c == '\n') {
             if (dataIndex > 0) {
                 receivedData[dataIndex] = 0;
-#if DEBUG
-                Serial.println(receivedData);
-#endif
+                LOG_TRACE("RX: %s", receivedData);
                 // Check for ACK first
                 if (waitingForResponse != RESPONSE_NONE) {
                     if (parseAckResponse(receivedData, waitingForResponse)) {
@@ -460,6 +369,11 @@ void handleUARTData() {
                     processSettingsData();
                 } else if (parseCalibrationJson(receivedData)) {
                     processCalibrationData();
+                } else {
+                    // A frame from the backend that matched no known schema.
+                    // Previously dropped silently — the single most useful thing
+                    // to see when the link misbehaves, so surface it at WARN.
+                    LOG_WARN("UART parse failed: %s", receivedData);
                 }
 
                 dataIndex = 0;
@@ -496,10 +410,11 @@ void handleResponseRetry() {
                     responseRetryCount = 0;
                     break;
             }
+            // The backend missed a command — a real link anomaly worth seeing
+            // even in production, not just under full trace.
+            LOG_WARN("Retry %d/%d for %s", responseRetryCount, MAX_RETRIES, ResponseTypeString.c_str());
         } else {
-#if DEBUG
-            Serial.println("[DEBUG] Max retries reached, giving up");
-#endif
+            LOG_WARN("Max retries (%d) reached for %s, giving up", MAX_RETRIES, ResponseTypeString.c_str());
             webErrorMessage = "Max retries (" + String(MAX_RETRIES) + ") reached for " + ResponseTypeString;
             hasWebError     = true;
             // Only take over the physical screen for user-initiated sends.
@@ -524,9 +439,7 @@ void handleTestRequests() {
     if (waitingForResponse != RESPONSE_NONE) return;
     if (millis() - lastTestRequest >= TEST_REQUEST_INTERVAL) {
         lastTestRequest = millis();
-#if DEBUG
-        Serial.println("[TEST_UART] Sending automatic settings request");
-#endif
+        LOG_TRACE("[TEST_UART] Sending automatic settings request");
         responseRetryCount = 0;
         sendSettingsCommand();
     }

@@ -21,17 +21,8 @@ void setup() {
     preferences.begin(PREF_NAMESPACE, false);
     loadWiFiCredentials();
 
-#if DEBUG
-    Serial.println("====================================");
-    Serial.println("Power amplifier controller frontend");
-    Serial.println("DEBUG MODE ENABLED");
-#if TEST_UART
-    Serial.println("TEST_UART MODE ENABLED");
-#endif
-    Serial.println("====================================");
-#else
-    Serial.println("Power amplifier controller frontend started");
-#endif
+    LOG_INFO("Power amplifier controller frontend started (log level %d%s)",
+             LOG_LEVEL, TEST_UART ? ", TEST_UART" : "");
 
     // ── Display + touch init ──────────────────────────────────────────────────
     if (!initDisplay()) { while (true) {} }
@@ -54,7 +45,7 @@ void setup() {
     if (!disp_draw_buf)
         disp_draw_buf = (lv_color_t *)heap_caps_malloc(bufSize * 2, MALLOC_CAP_8BIT);
     if (!disp_draw_buf) {
-        Serial.println("LVGL disp_draw_buf allocate failed!");
+        LOG_WARN("LVGL disp_draw_buf allocate failed!");
         while (true) {}
     }
 
@@ -76,7 +67,7 @@ void setup() {
     connectToWiFi();
     registerWebRoutes();
 
-    Serial.println("Setup done");
+    LOG_INFO("Setup done");
 }
 
 void loop() {
@@ -87,23 +78,23 @@ void loop() {
     // ── WiFi connection management ────────────────────────────────────────────
     if (isConnecting) {
         if (WiFi.status() == WL_CONNECTED) {
-            Serial.println("\nConnected successfully!");
+            LOG_INFO("Connected successfully");
             printWiFiStatus();
 
             if (!serverStarted) {
                 server.begin();
                 serverStarted = true;
-                Serial.println("HTTP server started");
+                LOG_INFO("HTTP server started");
             }
             if (!otaStarted) {
                 setupOTA();
                 otaStarted = true;
-                Serial.println("OTA server started");
+                LOG_INFO("OTA server started");
             }
             isConnecting = false;
 
         } else if (now - connectionStartTime > CONNECTION_TIMEOUT) {
-            Serial.println("\nConnection timeout!");
+            LOG_WARN("WiFi connection timeout");
             isConnecting = false;
             WiFi.disconnect();
         }
@@ -111,7 +102,7 @@ void loop() {
 
     if (!isConnecting && WiFi.status() != WL_CONNECTED) {
         if (now - lastWifiReconnectAttempt >= WIFI_RECONNECT_INTERVAL) {
-            Serial.println("WiFi connection lost. Reconnecting...");
+            LOG_WARN("WiFi connection lost, reconnecting");
             connectToWiFi();
             lastWifiReconnectAttempt = now;
         }

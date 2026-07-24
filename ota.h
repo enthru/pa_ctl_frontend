@@ -7,25 +7,27 @@ inline void setupOTA() {
     ArduinoOTA.setRebootOnSuccess(true);
 
     ArduinoOTA.onStart([]() {
-        String type = (ArduinoOTA.getCommand() == U_FLASH) ? "sketch" : "filesystem";
-        Serial.println("[OTA] Start updating " + type);
+        LOG_INFO("[OTA] Start updating %s",
+                 ArduinoOTA.getCommand() == U_FLASH ? "sketch" : "filesystem");
     });
     ArduinoOTA.onEnd([]() {
-        Serial.println("\n[OTA] End");
+        LOG_INFO("[OTA] End");
     });
     ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-        Serial.printf("[OTA] Progress: %u%%\r", progress / (total / 100));
+        // Live progress meter (\r, no newline) — only ever runs during an
+        // update, so print it directly regardless of level.
+        if (total) Serial.printf("[OTA] Progress: %u%%\r", progress / (total / 100));
     });
     ArduinoOTA.onError([](ota_error_t error) {
-        Serial.printf("[OTA] Error[%u]: ", error);
-        if      (error == OTA_AUTH_ERROR)    Serial.println("Auth Failed");
-        else if (error == OTA_BEGIN_ERROR)   Serial.println("Begin Failed");
-        else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-        else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-        else if (error == OTA_END_ERROR)     Serial.println("End Failed");
+        const char* reason =
+            error == OTA_AUTH_ERROR    ? "Auth Failed"    :
+            error == OTA_BEGIN_ERROR   ? "Begin Failed"   :
+            error == OTA_CONNECT_ERROR ? "Connect Failed" :
+            error == OTA_RECEIVE_ERROR ? "Receive Failed" :
+            error == OTA_END_ERROR     ? "End Failed"     : "Unknown";
+        LOG_WARN("[OTA] Error[%u]: %s", error, reason);
     });
 
     ArduinoOTA.begin();
-    Serial.println("[OTA] Ready");
-    Serial.print("[OTA] IP address: "); Serial.println(WiFi.localIP());
+    LOG_INFO("[OTA] Ready, IP %s", WiFi.localIP().toString().c_str());
 }
