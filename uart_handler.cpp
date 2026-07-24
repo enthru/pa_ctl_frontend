@@ -1,6 +1,11 @@
 #include "uart_handler.h"
 #include "ui_handlers.h"   // getCurrentScreenName, set_switch_state
 
+// Owned by pa_ctl.ino. loop() auto-returns from ui_warning to ui_main only for
+// alarm-driven warnings (it checks !warningDismissed). The comms-error screen
+// below sets it true so that auto-return does not instantly swallow the error.
+extern bool warningDismissed;
+
 // ─── Forward declarations of data processors ─────────────────────────────────
 static void processParsedData();
 static void processSettingsData();
@@ -272,6 +277,21 @@ bool requestAndWaitForCalibration(unsigned long timeout) {
 
 // ─── Data processors (internal) ───────────────────────────────────────────────
 
+// Update a label only when its text actually changed. lv_label_set_text always
+// reallocates the label's string and invalidates the widget (LVGL does not
+// compare), so on the status hot path — where most values are static during RX
+// — an unconditional set forces a needless repaint every frame. Caching the
+// last text collapses those to zero work until a value moves. `cache` must be a
+// static buffer per label of at least LABEL_CACHE bytes.
+#define LABEL_CACHE 24
+static void labelSetCached(lv_obj_t* obj, char* cache, const char* text) {
+    if (strcmp(cache, text) != 0) {
+        strncpy(cache, text, LABEL_CACHE - 1);
+        cache[LABEL_CACHE - 1] = '\0';
+        lv_label_set_text(obj, text);
+    }
+}
+
 static void processParsedData() {
     if (waitingForResponse != RESPONSE_NONE) return;
     // No per-frame dump here: status frames arrive several times a second and
@@ -281,9 +301,14 @@ static void processParsedData() {
     if (lv_scr_act() == ui_main) {
         // Format into a stack buffer instead of temporary Arduino Strings to
         // avoid heap churn/fragmentation on this per-frame hot path.
-        char buf[24];
+        char buf[LABEL_CACHE];
+        // One persistent cache per label; skips the repaint when text is unchanged.
+        static char cPwr[LABEL_CACHE], cSwr[LABEL_CACHE], cRef[LABEL_CACHE],
+                    cVol[LABEL_CACHE], cCur[LABEL_CACHE], cWater[LABEL_CACHE],
+                    cPlate[LABEL_CACHE], cCoeff[LABEL_CACHE], cPump[LABEL_CACHE],
+                    cFan[LABEL_CACHE], cBand[LABEL_CACHE], cIPwr[LABEL_CACHE];
 
-        snprintf(buf, sizeof(buf), "%.2fW", status.fwd);        lv_label_set_text(ui_pwrTxt, buf);
+        snprintf(buf, sizeof(buf), "%.2fW", status.fwd);        labelSetCached(ui_pwrTxt, cPwr, buf);
         lv_bar_set_value(ui_pwrBar, int(status.fwd), LV_ANIM_ON);
 
         // PTT rarely changes but status frames arrive several times a second.
@@ -299,19 +324,20 @@ static void processParsedData() {
             lv_obj_set_style_bg_color(ui_Button2, pttColor, LV_PART_MAIN | LV_STATE_DEFAULT);
         }
 
-        snprintf(buf, sizeof(buf), "%.2f",  status.swr);        lv_label_set_text(ui_swrValue, buf);
-        snprintf(buf, sizeof(buf), "%.2fW", status.ref);        lv_label_set_text(ui_refTxt,   buf);
-        snprintf(buf, sizeof(buf), "%.1fV", status.voltage);    lv_label_set_text(ui_volTxt,   buf);
-        snprintf(buf, sizeof(buf), "%.1fA", status.current);    lv_label_set_text(ui_current,  buf);
-        snprintf(buf, sizeof(buf), "%.1fC", status.water_temp); lv_label_set_text(ui_waterTmp, buf);
-        snprintf(buf, sizeof(buf), "%.1fC", status.plate_temp); lv_label_set_text(ui_plateTmp, buf);
-        snprintf(buf, sizeof(buf), "%.1f%%",status.coeff);      lv_label_set_text(ui_coeff,    buf);
-        snprintf(buf, sizeof(buf), "%d%%",  status.pwm_pump);   lv_label_set_text(ui_pumpSTxt, buf);
-        snprintf(buf, sizeof(buf), "%d%%",  status.pwm_cooler); lv_label_set_text(ui_fanSTxt,  buf);
+        snprintf(buf, sizeof(buf), "%.2f",  status.swr);        labelSetCached(ui_swrValue, cSwr,  buf);
+        snprintf(buf, sizeof(buf), "%.2fW", status.ref);        labelSetCached(ui_refTxt,   cRef,  buf);
+        snprintf(buf, sizeof(buf), "%.1fV", status.voltage);    labelSetCached(ui_volTxt,   cVol,  buf);
+        snprintf(buf, sizeof(buf), "%.1fA", status.current);    labelSetCached(ui_current,  cCur,  buf);
+        snprintf(buf, sizeof(buf), "%.1fC", status.water_temp); labelSetCached(ui_waterTmp, cWater,buf);
+        snprintf(buf, sizeof(buf), "%.1fC", status.plate_temp); labelSetCached(ui_plateTmp, cPlate,buf);
+        snprintf(buf, sizeof(buf), "%.1f%%",status.coeff);      labelSetCached(ui_coeff,    cCoeff,buf);
+        snprintf(buf, sizeof(buf), "%d%%",  status.pwm_pump);   labelSetCached(ui_pumpSTxt, cPump, buf);
+        snprintf(buf, sizeof(buf), "%d%%",  status.pwm_cooler); labelSetCached(ui_fanSTxt,  cFan,  buf);
         set_switch_state(ui_mainSwitch, status.state);
-        lv_label_set_text(ui_Label2,   status.band);
+        labelSetCached(ui_Label2,   cBand, status.band);
         strncpy(state.band, status.band, sizeof(state.band) - 1);
-        snprintf(buf, sizeof(buf), "%.2fW", status.trxfwd);     lv_label_set_text(ui_iPWRTxt,  buf);
+        state.band[sizeof(state.band) - 1] = '\0';
+        snprintf(buf, sizeof(buf), "%.2fW", status.trxfwd);     labelSetCached(ui_iPWRTxt,  cIPwr, buf);
     }
 }
 
@@ -425,6 +451,11 @@ void handleResponseRetry() {
                 waitingForResponse == RESPONSE_CALIBRATION_SEND) {
                 lv_label_set_text(ui_alertReason, ("Max retries for " + ResponseTypeString).c_str());
                 lv_scr_load(ui_warning);
+                // Mark dismissed so loop()'s alarm-return logic (which fires on
+                // !warningDismissed && !status.alarm) doesn't wipe this comms
+                // error off the screen on the very next iteration. It stays until
+                // the user acknowledges it or a real alarm supersedes it.
+                warningDismissed = true;
             }
             waitingForResponse = RESPONSE_NONE;
             responseRetryCount = 0;
