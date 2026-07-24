@@ -340,6 +340,18 @@ void updateGauges(bool force) {
     }
 }
 
+// Append the latest telemetry sample to the three trend sparklines. Called at
+// ~1 Hz from the UART path so ~100 s of history scrolls across each chart. The
+// charts live for the whole program lifetime, so they keep accruing even while
+// ui_mainLeft isn't the active screen and are already current when swiped to.
+void pushSparklines(void) {
+    if (!ui_spPwr) return;
+    lv_chart_series_t* s;
+    s = lv_chart_get_series_next(ui_spPwr,   NULL); if (s) lv_chart_set_next_value(ui_spPwr,   s, (int32_t)status.fwd);
+    s = lv_chart_get_series_next(ui_spWater, NULL); if (s) lv_chart_set_next_value(ui_spWater, s, (int32_t)status.water_temp);
+    s = lv_chart_get_series_next(ui_spPlate, NULL); if (s) lv_chart_set_next_value(ui_spPlate, s, (int32_t)status.plate_temp);
+}
+
 // Bound to ui_mainLeft's SCREEN_LOADED: paint current values immediately so the
 // gauges aren't blank until the next UART frame.
 void graphOpened(lv_event_t * /*e*/) {

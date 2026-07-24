@@ -306,6 +306,13 @@ static void colorThresh(lv_obj_t* obj, int8_t* state, lv_color_t* def, bool* hav
 
 static void processParsedData() {
     if (waitingForResponse != RESPONSE_NONE) return;
+
+    unsigned long nowMs = millis();
+    // Sample the trend sparklines at ~1 Hz. Runs regardless of the active screen
+    // so ~100 s of history has already accrued by the time ui_mainLeft is opened.
+    static unsigned long lastSpark = 0;
+    if (nowMs - lastSpark >= 1000) { lastSpark = nowMs; pushSparklines(); }
+
     // No per-frame dump here: status frames arrive several times a second and
     // dumping every one would flood serial and stall this hot path. Enable
     // LOG_LEVEL 3 and inspect the raw "RX:" trace line instead if you need it.
@@ -329,7 +336,6 @@ static void processParsedData() {
         // a thin line positioned along the bar's on-screen x span (bar: left edge
         // x=-233, width 354, range 0..1200 -> right edge x=121).
         static float peakW = 0; static unsigned long peakAt = 0;
-        unsigned long nowMs = millis();
         if (status.fwd >= peakW || nowMs - peakAt > PEAK_HOLD_MS) { peakW = status.fwd; peakAt = nowMs; }
         int peakX = -233 + (int)(peakW * (354.0f / 1200.0f));
         if (peakX > 121) peakX = 121;

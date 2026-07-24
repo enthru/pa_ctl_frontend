@@ -1,8 +1,5 @@
 #include "globals.h"
 
-// - telemetry storage
-ChartHistory history = {};
-
 // ─── NVS keys ─────────────────────────────────────────────────────────────────
 const char* PREF_NAMESPACE = "wifi_config";
 const char* SSID_KEY       = "ssid";

@@ -18,10 +18,10 @@ extern lv_obj_t *ui_mainLeft;
 // Gauge dashboard: four arc meters (colour-zoned by protection limit) plus a
 // central column of key electrical readouts. This is a second, graphical view
 // of the main-screen telemetry (swipe left from ui_main).
-extern lv_obj_t *ui_gPwr;      extern lv_obj_t *ui_gPwrVal;
+extern lv_obj_t *ui_gPwr;      extern lv_obj_t *ui_gPwrVal;   extern lv_obj_t *ui_spPwr;
 extern lv_obj_t *ui_gSwr;      extern lv_obj_t *ui_gSwrVal;
-extern lv_obj_t *ui_gWater;    extern lv_obj_t *ui_gWaterVal;
-extern lv_obj_t *ui_gPlate;    extern lv_obj_t *ui_gPlateVal;
+extern lv_obj_t *ui_gWater;    extern lv_obj_t *ui_gWaterVal; extern lv_obj_t *ui_spWater;
+extern lv_obj_t *ui_gPlate;    extern lv_obj_t *ui_gPlateVal; extern lv_obj_t *ui_spPlate;
 extern lv_obj_t *ui_gCur;
 extern lv_obj_t *ui_gVol;
 extern lv_obj_t *ui_gCoeff;

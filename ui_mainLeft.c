@@ -3,19 +3,22 @@
 // LVGL version: 9.1.0
 // Project name: pa_ctl
 //
-// ui_mainLeft was originally two history charts fed from a ring buffer that is
-// never populated (dead feature). It has been repurposed into a graphical
-// "gauge dashboard": a second view of the same live telemetry shown as numbers
-// on ui_main. Swipe left returns to ui_main. Gauges are refreshed on open
-// (graphOpened) and live while shown (updateGauges, called from the UART path).
+// ui_mainLeft is a graphical "gauge dashboard": a second view of the same live
+// telemetry shown numerically on ui_main (swipe left to reach it, swipe left
+// again to return). Three columns (power / water temp / plate temp) each pair an
+// arc gauge with a rolling sparkline; a bottom row carries the SWR gauge and the
+// current/voltage/efficiency readouts. Gauge values are pushed from the UART
+// path (updateGauges); the sparklines are fed once per second (pushSparklines).
 
 #include "ui.h"
 
+#define SPARK_POINTS 100
+
 lv_obj_t *ui_mainLeft = NULL;
-lv_obj_t *ui_gPwr = NULL;   lv_obj_t *ui_gPwrVal = NULL;
+lv_obj_t *ui_gPwr = NULL;   lv_obj_t *ui_gPwrVal = NULL;   lv_obj_t *ui_spPwr = NULL;
 lv_obj_t *ui_gSwr = NULL;   lv_obj_t *ui_gSwrVal = NULL;
-lv_obj_t *ui_gWater = NULL; lv_obj_t *ui_gWaterVal = NULL;
-lv_obj_t *ui_gPlate = NULL; lv_obj_t *ui_gPlateVal = NULL;
+lv_obj_t *ui_gWater = NULL; lv_obj_t *ui_gWaterVal = NULL; lv_obj_t *ui_spWater = NULL;
+lv_obj_t *ui_gPlate = NULL; lv_obj_t *ui_gPlateVal = NULL; lv_obj_t *ui_spPlate = NULL;
 lv_obj_t *ui_gCur = NULL;
 lv_obj_t *ui_gVol = NULL;
 lv_obj_t *ui_gCoeff = NULL;
@@ -39,7 +42,7 @@ if ( event_code == LV_EVENT_SCREEN_LOADED) {
 // (so it can't be dragged and can't swallow the swipe-back gesture).
 static lv_obj_t* mainLeft_gauge(lv_obj_t* parent, int x, int y, int rmin, int rmax, lv_color_t ind) {
     lv_obj_t* a = lv_arc_create(parent);
-    lv_obj_set_size( a, 96, 96);
+    lv_obj_set_size( a, 72, 72);
     lv_obj_set_align( a, LV_ALIGN_CENTER );
     lv_obj_set_x( a, x );
     lv_obj_set_y( a, y );
@@ -49,8 +52,8 @@ static lv_obj_t* mainLeft_gauge(lv_obj_t* parent, int x, int y, int rmin, int rm
     lv_arc_set_value( a, rmin );
     lv_obj_remove_flag( a, LV_OBJ_FLAG_CLICKABLE );
     lv_obj_remove_flag( a, LV_OBJ_FLAG_SCROLLABLE );
-    lv_obj_set_style_arc_width( a, 9, LV_PART_MAIN );
-    lv_obj_set_style_arc_width( a, 9, LV_PART_INDICATOR );
+    lv_obj_set_style_arc_width( a, 8, LV_PART_MAIN );
+    lv_obj_set_style_arc_width( a, 8, LV_PART_INDICATOR );
     lv_obj_set_style_arc_color( a, lv_color_hex(0xD0D0D0), LV_PART_MAIN );
     lv_obj_set_style_arc_color( a, ind, LV_PART_INDICATOR );
     lv_obj_set_style_bg_opa( a, LV_OPA_TRANSP, LV_PART_KNOB );
@@ -69,35 +72,62 @@ static lv_obj_t* mainLeft_label(lv_obj_t* parent, int x, int y, const lv_font_t*
     return l;
 }
 
+// Minimal sparkline: a 100-point line chart, no grid / border / point markers,
+// non-interactive. Primed empty so it starts blank rather than a flat 0 line.
+static lv_obj_t* mainLeft_spark(lv_obj_t* parent, int x, int y, int rmin, int rmax, lv_color_t line) {
+    lv_obj_t* c = lv_chart_create(parent);
+    lv_obj_set_size( c, 120, 28 );
+    lv_obj_set_align( c, LV_ALIGN_CENTER );
+    lv_obj_set_x( c, x );
+    lv_obj_set_y( c, y );
+    lv_obj_remove_flag( c, LV_OBJ_FLAG_SCROLLABLE );
+    lv_obj_remove_flag( c, LV_OBJ_FLAG_CLICKABLE );
+    lv_chart_set_type( c, LV_CHART_TYPE_LINE );
+    lv_chart_set_point_count( c, SPARK_POINTS );
+    lv_chart_set_update_mode( c, LV_CHART_UPDATE_MODE_SHIFT );
+    lv_chart_set_range( c, LV_CHART_AXIS_PRIMARY_Y, rmin, rmax );
+    lv_chart_set_div_line_count( c, 0, 0 );
+    lv_obj_set_style_border_width( c, 0, LV_PART_MAIN );
+    lv_obj_set_style_bg_opa( c, LV_OPA_TRANSP, LV_PART_MAIN );
+    lv_obj_set_style_line_width( c, 2, LV_PART_ITEMS );
+    lv_obj_set_style_width( c, 0, LV_PART_INDICATOR );   // hide point markers
+    lv_obj_set_style_height( c, 0, LV_PART_INDICATOR );
+    lv_chart_series_t* s = lv_chart_add_series( c, line, LV_CHART_AXIS_PRIMARY_Y );
+    for (int i = 0; i < SPARK_POINTS; i++) lv_chart_set_next_value( c, s, LV_CHART_POINT_NONE );
+    return c;
+}
+
 void ui_mainLeft_screen_init(void)
 {
 ui_mainLeft = lv_obj_create(NULL);
 lv_obj_remove_flag( ui_mainLeft, LV_OBJ_FLAG_SCROLLABLE );    /// Flags
 
-// Top-left: forward power (accent colour, not threshold-driven).
-ui_gPwr    = mainLeft_gauge(ui_mainLeft, -112, -62, 0, 1200, lv_color_hex(0x007AFF));
-ui_gPwrVal = mainLeft_label(ui_mainLeft, -112, -70, &lv_font_montserrat_20, "0W");
-mainLeft_label(ui_mainLeft, -112, -44, &lv_font_montserrat_16, "POWER");
+// ── Column 1 (left): forward power — accent colour, not threshold-driven ──
+mainLeft_label(ui_mainLeft, -150, -126, &lv_font_montserrat_16, "POWER");
+ui_gPwr    = mainLeft_gauge(ui_mainLeft, -150, -84, 0, 1200, lv_color_hex(0x007AFF));
+ui_gPwrVal = mainLeft_label(ui_mainLeft, -150, -84, &lv_font_montserrat_20, "0W");
+ui_spPwr   = mainLeft_spark(ui_mainLeft, -150, -28, 0, 1200, lv_color_hex(0x007AFF));
 
-// Top-right: SWR (green/amber/red by max-SWR limit). Range 1.0..4.0 as x10.
-ui_gSwr    = mainLeft_gauge(ui_mainLeft, 112, -62, 10, 40, lv_color_hex(0x00A000));
-ui_gSwrVal = mainLeft_label(ui_mainLeft, 112, -70, &lv_font_montserrat_20, "1.0");
-mainLeft_label(ui_mainLeft, 112, -44, &lv_font_montserrat_16, "SWR");
+// ── Column 2 (centre): water temperature ──
+mainLeft_label(ui_mainLeft, 0, -126, &lv_font_montserrat_16, "WATER");
+ui_gWater    = mainLeft_gauge(ui_mainLeft, 0, -84, 0, 100, lv_color_hex(0x00A000));
+ui_gWaterVal = mainLeft_label(ui_mainLeft, 0, -84, &lv_font_montserrat_20, "0C");
+ui_spWater   = mainLeft_spark(ui_mainLeft, 0, -28, 0, 100, lv_color_hex(0x00A000));
 
-// Bottom-left: water temperature.
-ui_gWater    = mainLeft_gauge(ui_mainLeft, -112, 64, 0, 100, lv_color_hex(0x00A000));
-ui_gWaterVal = mainLeft_label(ui_mainLeft, -112, 56, &lv_font_montserrat_20, "0C");
-mainLeft_label(ui_mainLeft, -112, 82, &lv_font_montserrat_16, "WATER");
+// ── Column 3 (right): plate temperature ──
+mainLeft_label(ui_mainLeft, 150, -126, &lv_font_montserrat_16, "PLATE");
+ui_gPlate    = mainLeft_gauge(ui_mainLeft, 150, -84, 0, 120, lv_color_hex(0x00A000));
+ui_gPlateVal = mainLeft_label(ui_mainLeft, 150, -84, &lv_font_montserrat_20, "0C");
+ui_spPlate   = mainLeft_spark(ui_mainLeft, 150, -28, 0, 120, lv_color_hex(0x00A000));
 
-// Bottom-right: plate temperature.
-ui_gPlate    = mainLeft_gauge(ui_mainLeft, 112, 64, 0, 120, lv_color_hex(0x00A000));
-ui_gPlateVal = mainLeft_label(ui_mainLeft, 112, 56, &lv_font_montserrat_20, "0C");
-mainLeft_label(ui_mainLeft, 112, 82, &lv_font_montserrat_16, "PLATE");
+// ── Bottom row: SWR gauge + electrical readouts ──
+mainLeft_label(ui_mainLeft, 0, 26, &lv_font_montserrat_16, "SWR");
+ui_gSwr    = mainLeft_gauge(ui_mainLeft, 0, 74, 10, 40, lv_color_hex(0x00A000));
+ui_gSwrVal = mainLeft_label(ui_mainLeft, 0, 74, &lv_font_montserrat_20, "1.0");
 
-// Centre column: key electrical readouts (current / voltage / efficiency).
-ui_gCur   = mainLeft_label(ui_mainLeft, 0, -40, &lv_font_montserrat_20, "0A");
-ui_gVol   = mainLeft_label(ui_mainLeft, 0,   0, &lv_font_montserrat_20, "0V");
-ui_gCoeff = mainLeft_label(ui_mainLeft, 0,  40, &lv_font_montserrat_20, "0%");
+ui_gCur   = mainLeft_label(ui_mainLeft, -150, 56, &lv_font_montserrat_20, "0A");
+ui_gVol   = mainLeft_label(ui_mainLeft, -150, 94, &lv_font_montserrat_20, "0V");
+ui_gCoeff = mainLeft_label(ui_mainLeft,  150, 74, &lv_font_montserrat_20, "0%");
 
 lv_obj_add_event_cb(ui_mainLeft, ui_event_mainLeft, LV_EVENT_ALL, NULL);
 
@@ -109,10 +139,10 @@ void ui_mainLeft_screen_destroy(void)
 
 // NULL screen variables
 ui_mainLeft= NULL;
-ui_gPwr= NULL;    ui_gPwrVal= NULL;
+ui_gPwr= NULL;    ui_gPwrVal= NULL;    ui_spPwr= NULL;
 ui_gSwr= NULL;    ui_gSwrVal= NULL;
-ui_gWater= NULL;  ui_gWaterVal= NULL;
-ui_gPlate= NULL;  ui_gPlateVal= NULL;
+ui_gWater= NULL;  ui_gWaterVal= NULL;  ui_spWater= NULL;
+ui_gPlate= NULL;  ui_gPlateVal= NULL;  ui_spPlate= NULL;
 ui_gCur= NULL;
 ui_gVol= NULL;
 ui_gCoeff= NULL;

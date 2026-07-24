@@ -90,18 +90,10 @@ enum ResponseType {
     RESPONSE_CALIBRATION_SEND
 };
 
+// Rolling sample count for the ui_mainLeft sparkline charts. The trend data
+// lives directly inside the lv_chart widgets (fed via lv_chart_set_next_value);
+// there is no separate ring buffer.
 #define CHART_POINTS 100
-
-// telemetry storage
-struct ChartHistory {
-    int16_t water_temp[CHART_POINTS];
-    int16_t plate_temp[CHART_POINTS];
-    int16_t power[CHART_POINTS];
-    uint8_t head;
-    uint8_t count;
-};
-
-extern ChartHistory history;
 
 extern String       ResponseTypeString;
 extern ResponseType waitingForResponse;
