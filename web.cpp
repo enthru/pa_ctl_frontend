@@ -135,8 +135,9 @@ void handleResetError() {
 // ─── / (main status page) ─────────────────────────────────────────────────────
 
 void handleRoot() {
-    String html = pageHead("Status");
-    html += R"rawliteral(
+    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    server.send(200, "text/html", pageHead("Status"));
+    server.sendContent_P(R"rawliteral(
     <div class="container" id="statusOutGrid">
         <h1>Amplifier Status</h1>
         <div class="status-grid" id="statusGrid">
@@ -167,9 +168,9 @@ void handleRoot() {
         </div>
     </div>
     <script>
-    )rawliteral";
-    html += ALERT_JS;
-    html += R"rawliteral(
+    )rawliteral");
+    server.sendContent_P(ALERT_JS);
+    server.sendContent_P(R"rawliteral(
         function updateStatus() {
             fetch('/status').then(r => r.ok ? r.json() : null).then(data => {
                 if (!data) return;
@@ -202,10 +203,10 @@ void handleRoot() {
         setInterval(updateStatus, 500);
         updateStatus();
     </script>
-    )rawliteral";
-    html += ALERT_HTML;
-    html += "</body></html>";
-    server.send(200, "text/html", html);
+    )rawliteral");
+    server.sendContent_P(ALERT_HTML);
+    server.sendContent_P("</body></html>");
+    server.sendContent("");   // terminate chunked response
 }
 
 // ─── /status (JSON) ───────────────────────────────────────────────────────────
@@ -232,8 +233,9 @@ void handleStatus() {
 // ─── /band ────────────────────────────────────────────────────────────────────
 
 void handleBandPage() {
-    String html = pageHead("Band Selection");
-    html += R"rawliteral(
+    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    server.send(200, "text/html", pageHead("Band Selection"));
+    server.sendContent_P(R"rawliteral(
     <div class="container">
         <h1>Band Selection</h1>
         <div class="band-grid">
@@ -255,9 +257,9 @@ void handleBandPage() {
         </div>
     </div>
     <script>
-    )rawliteral";
-    html += ALERT_JS;
-    html += R"rawliteral(
+    )rawliteral");
+    server.sendContent_P(ALERT_JS);
+    server.sendContent_P(R"rawliteral(
         function setBand(band) {
             fetch('/setband', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'band='+band })
             .then(() => { document.getElementById('message').textContent = 'Band set to: ' + band;
@@ -276,10 +278,10 @@ void handleBandPage() {
             }).catch(console.error);
         });
     </script>
-    )rawliteral";
-    html += ALERT_HTML;
-    html += "</body></html>";
-    server.send(200, "text/html", html);
+    )rawliteral");
+    server.sendContent_P(ALERT_HTML);
+    server.sendContent_P("</body></html>");
+    server.sendContent("");   // terminate chunked response
 }
 
 // ─── /setband ─────────────────────────────────────────────────────────────────
@@ -309,8 +311,9 @@ void handleSetState() {
 // ─── /settings ────────────────────────────────────────────────────────────────
 
 void handleSettingsPage() {
-    String html = pageHead("Settings");
-    html += R"rawliteral(
+    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    server.send(200, "text/html", pageHead("Settings"));
+    server.sendContent_P(R"rawliteral(
     <div class="container">
         <h1>Amplifier Settings</h1>
         <form id="settingsForm" action="/savesettings" method="POST">
@@ -368,9 +371,9 @@ void handleSettingsPage() {
         </form>
     </div>
     <script>
-    )rawliteral";
-    html += ALERT_JS;
-    html += R"rawliteral(
+    )rawliteral");
+    server.sendContent_P(ALERT_JS);
+    server.sendContent_P(R"rawliteral(
         function loadSettings(attempt) {
             attempt = attempt || 1;
             const msg = document.getElementById('message');
@@ -415,10 +418,10 @@ void handleSettingsPage() {
             document.getElementById('message').textContent = 'Saving...';
         });
     </script>
-    )rawliteral";
-    html += ALERT_HTML;
-    html += "</body></html>";
-    server.send(200, "text/html", html);
+    )rawliteral");
+    server.sendContent_P(ALERT_HTML);
+    server.sendContent_P("</body></html>");
+    server.sendContent("");   // terminate chunked response
 }
 
 void handleGetSettings() {
@@ -480,8 +483,9 @@ void handleSaveSettings() {
 // ─── /calibration ─────────────────────────────────────────────────────────────
 
 void handleCalibrationPage() {
-    String html = pageHead("Calibration");
-    html += R"rawliteral(
+    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    server.send(200, "text/html", pageHead("Calibration"));
+    server.sendContent_P(R"rawliteral(
     <div class="container">
         <h1>Calibration Settings</h1>
         <form id="calibrationForm" action="/savecalibration" method="POST">
@@ -523,9 +527,9 @@ void handleCalibrationPage() {
         </form>
     </div>
     <script>
-    )rawliteral";
-    html += ALERT_JS;
-    html += R"rawliteral(
+    )rawliteral");
+    server.sendContent_P(ALERT_JS);
+    server.sendContent_P(R"rawliteral(
         function loadCalibration(attempt) {
             attempt = attempt || 1;
             const msg = document.getElementById('message');
@@ -564,10 +568,10 @@ void handleCalibrationPage() {
             document.getElementById('message').textContent = 'Saving calibration...';
         });
     </script>
-    )rawliteral";
-    html += ALERT_HTML;
-    html += "</body></html>";
-    server.send(200, "text/html", html);
+    )rawliteral");
+    server.sendContent_P(ALERT_HTML);
+    server.sendContent_P("</body></html>");
+    server.sendContent("");   // terminate chunked response
 }
 
 void handleGetCalibration() {
