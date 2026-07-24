@@ -174,7 +174,7 @@ void sendSettingsData() {
     responseRequestTime = millis();
 }
 
-void sendStateData() {
+void sendStateData(bool trackResponse) {
 #if DEBUG
     Serial.print("[DEBUG] Sending state data");
     if (responseRetryCount > 0) {
@@ -202,9 +202,13 @@ void sendStateData() {
     strcat(json, "}}");
 
     Serial1.println(json);
+#if DEBUG
     Serial.println(json);
-    waitingForResponse  = RESPONSE_STATE_SEND;
-    responseRequestTime = millis();
+#endif
+    if (trackResponse) {
+        waitingForResponse  = RESPONSE_STATE_SEND;
+        responseRequestTime = millis();
+    }
 }
 
 void sendCalibrationCommand() {
@@ -272,19 +276,18 @@ bool requestAndWaitForSettings(unsigned long timeout) {
 #endif
     waitingForResponse  = RESPONSE_NONE;
     responseRetryCount  = 0;
+    settingsReceived    = false;
     sendSettingsCommand();
 
     unsigned long startTime = millis();
     while (millis() - startTime < timeout) {
         handleUARTData();
-        if (waitingForResponse == RESPONSE_NONE) {
-            if (settings.max_swr > 0 || settings.max_current > 0) {
+        if (settingsReceived) {
 #if DEBUG
-                Serial.println("[DEBUG] Settings received successfully");
-                debugSettingsData();
+            Serial.println("[DEBUG] Settings received successfully");
+            debugSettingsData();
 #endif
-                return true;
-            }
+            return true;
         }
         handleResponseRetry();
     }
@@ -300,19 +303,18 @@ bool requestAndWaitForCalibration(unsigned long timeout) {
 #endif
     waitingForResponse  = RESPONSE_NONE;
     responseRetryCount  = 0;
+    calibrationReceived = false;
     sendCalibrationCommand();
 
     unsigned long startTime = millis();
     while (millis() - startTime < timeout) {
         handleUARTData();
-        if (waitingForResponse == RESPONSE_NONE) {
-            if (calibration.low_fwd_coeff > 0 || calibration.voltage_coeff > 0) {
+        if (calibrationReceived) {
 #if DEBUG
-                Serial.println("[DEBUG] Calibration received successfully");
-                debugCalibrationData();
+            Serial.println("[DEBUG] Calibration received successfully");
+            debugCalibrationData();
 #endif
-                return true;
-            }
+            return true;
         }
         handleResponseRetry();
     }
@@ -331,7 +333,11 @@ static void processParsedData() {
     debugStatusData();
 #endif
     if (strcmp(getCurrentScreenName(), "main") == 0) {
-        lv_label_set_text(ui_pwrTxt, (String(status.fwd) + "W").c_str());
+        // Format into a stack buffer instead of temporary Arduino Strings to
+        // avoid heap churn/fragmentation on this per-frame hot path.
+        char buf[24];
+
+        snprintf(buf, sizeof(buf), "%.2fW", status.fwd);        lv_label_set_text(ui_pwrTxt, buf);
         lv_bar_set_value(ui_pwrBar, int(status.fwd), LV_ANIM_ON);
 
         lv_color_t pttColor = status.ptt ? lv_color_hex(0xFF0000) : lv_color_hex(0x007AFF);
@@ -340,19 +346,19 @@ static void processParsedData() {
         lv_obj_set_style_bg_color(ui_Button1, pttColor, LV_PART_MAIN | LV_STATE_DEFAULT);
         lv_obj_set_style_bg_color(ui_Button2, pttColor, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-        lv_label_set_text(ui_swrValue, String(status.swr).c_str());
-        lv_label_set_text(ui_refTxt,   (String(status.ref)          + "W").c_str());
-        lv_label_set_text(ui_volTxt,   (String(status.voltage, 1)   + "V").c_str());
-        lv_label_set_text(ui_current,  (String(status.current, 1)   + "A").c_str());
-        lv_label_set_text(ui_waterTmp, (String(status.water_temp, 1)+ "C").c_str());
-        lv_label_set_text(ui_plateTmp, (String(status.plate_temp, 1)+ "C").c_str());
-        lv_label_set_text(ui_coeff,    (String(status.coeff, 1)     + "%").c_str());
-        lv_label_set_text(ui_pumpSTxt, (String(status.pwm_pump)     + "%").c_str());
-        lv_label_set_text(ui_fanSTxt,  (String(status.pwm_cooler)   + "%").c_str());
+        snprintf(buf, sizeof(buf), "%.2f",  status.swr);        lv_label_set_text(ui_swrValue, buf);
+        snprintf(buf, sizeof(buf), "%.2fW", status.ref);        lv_label_set_text(ui_refTxt,   buf);
+        snprintf(buf, sizeof(buf), "%.1fV", status.voltage);    lv_label_set_text(ui_volTxt,   buf);
+        snprintf(buf, sizeof(buf), "%.1fA", status.current);    lv_label_set_text(ui_current,  buf);
+        snprintf(buf, sizeof(buf), "%.1fC", status.water_temp); lv_label_set_text(ui_waterTmp, buf);
+        snprintf(buf, sizeof(buf), "%.1fC", status.plate_temp); lv_label_set_text(ui_plateTmp, buf);
+        snprintf(buf, sizeof(buf), "%.1f%%",status.coeff);      lv_label_set_text(ui_coeff,    buf);
+        snprintf(buf, sizeof(buf), "%d%%",  status.pwm_pump);   lv_label_set_text(ui_pumpSTxt, buf);
+        snprintf(buf, sizeof(buf), "%d%%",  status.pwm_cooler); lv_label_set_text(ui_fanSTxt,  buf);
         set_switch_state(ui_mainSwitch, status.state);
-        lv_label_set_text(ui_Label2,   String(status.band).c_str());
+        lv_label_set_text(ui_Label2,   status.band);
         strncpy(state.band, status.band, sizeof(state.band) - 1);
-        lv_label_set_text(ui_iPWRTxt,  (String(status.trxfwd) + "W").c_str());
+        snprintf(buf, sizeof(buf), "%.2fW", status.trxfwd);     lv_label_set_text(ui_iPWRTxt,  buf);
     }
 }
 
@@ -361,6 +367,7 @@ static void processSettingsData() {
     Serial.println("[DEBUG] Processing settings data");
     debugSettingsData();
 #endif
+    settingsReceived = true;
     if (waitingForResponse == RESPONSE_SETTINGS_REQUEST) {
         waitingForResponse = RESPONSE_NONE;
         responseRetryCount = 0;
@@ -372,6 +379,7 @@ static void processCalibrationData() {
     Serial.println("[DEBUG] Processing calibration data");
     debugCalibrationData();
 #endif
+    calibrationReceived = true;
     if (waitingForResponse == RESPONSE_CALIBRATION_REQUEST) {
         waitingForResponse = RESPONSE_NONE;
         responseRetryCount = 0;
@@ -452,8 +460,15 @@ void handleResponseRetry() {
 #endif
             webErrorMessage = "Max retries (" + String(MAX_RETRIES) + ") reached for " + ResponseTypeString;
             hasWebError     = true;
-            lv_label_set_text(ui_alertReason, ("Max retries for " + ResponseTypeString).c_str());
-            lv_scr_load(ui_warning);
+            // Only take over the physical screen for user-initiated sends.
+            // Background read requests (settings/calibration) are also polled
+            // from the web UI, and must not hijack the device display.
+            if (waitingForResponse == RESPONSE_SETTINGS_SEND ||
+                waitingForResponse == RESPONSE_STATE_SEND ||
+                waitingForResponse == RESPONSE_CALIBRATION_SEND) {
+                lv_label_set_text(ui_alertReason, ("Max retries for " + ResponseTypeString).c_str());
+                lv_scr_load(ui_warning);
+            }
             waitingForResponse = RESPONSE_NONE;
             responseRetryCount = 0;
         }

@@ -91,9 +91,9 @@ void dropdown_set_by_text(lv_obj_t *dropdown, const char *text) {
 
 String getUptime() {
     unsigned long up = millis() / 1000;
-    char buffer[20];
-    snprintf(buffer, sizeof(buffer), "%lu:%02lu:%02lu",
-             up / 86400, (up % 86400) / 3600, (up % 3600) / 60);
+    char buffer[32];
+    snprintf(buffer, sizeof(buffer), "%lud %02lu:%02lu:%02lu",
+             up / 86400, (up % 86400) / 3600, (up % 3600) / 60, up % 60);
     return String(buffer);
 }
 
@@ -212,7 +212,7 @@ void saveSettings(lv_event_t * /*e*/) {
 #if DEBUG
     Serial.println("[DEBUG] Settings saved from UI to variables:");
 #endif
-    sendStateData();
+    sendStateData(false);   // fire-and-forget; the settings send below is tracked
     sendSettingsData();
 }
 

@@ -98,14 +98,17 @@ static String pageHead(const char* title) {
 // ─── /events ─────────────────────────────────────────────────────────────────
 
 void handleEvents() {
-    String r = "{";
-    r += "\"alarm_active\":"  + String(status.alarm    ? "true" : "false") + ",";
-    r += "\"alert_reason\":\"" + String(status.alert_reason) + "\",";
-    r += "\"has_error\":"     + String(hasWebError     ? "true" : "false") + ",";
-    r += "\"error_message\":\"" + String(webErrorMessage) + "\"";
-    r += "}";
+    char r[192];
+    snprintf(r, sizeof(r),
+        "{\"alarm_active\":%s,\"alert_reason\":\"%s\",\"has_error\":%s,\"error_message\":\"%s\"}",
+        status.alarm ? "true" : "false",
+        status.alert_reason,
+        hasWebError ? "true" : "false",
+        webErrorMessage.c_str());
     server.send(200, "application/json", r);
-    if (hasWebError) { hasWebError = false; webErrorMessage = ""; }
+    // The error is left set until a client explicitly clears it via /reseterror
+    // (closeError()). Auto-clearing here would hide it from every polling
+    // client except the first one.
 }
 
 // ─── /resetalert, /reseterror ─────────────────────────────────────────────────
@@ -168,7 +171,8 @@ void handleRoot() {
     html += ALERT_JS;
     html += R"rawliteral(
         function updateStatus() {
-            fetch('/status').then(r => r.json()).then(data => {
+            fetch('/status').then(r => r.ok ? r.json() : null).then(data => {
+                if (!data) return;
                 const pv = data.fwd || 0;
                 document.getElementById('pwr').textContent  = pv + 'W';
                 document.getElementById('pwrBar').style.width = Math.min(pv / 12, 100) + '%';
@@ -211,23 +215,17 @@ void handleStatus() {
         server.send(503, "application/json", "{\"error\":\"Busy\"}");
         return;
     }
-    String r = "{";
-    r += "\"fwd\":"        + String(status.fwd)          + ",";
-    r += "\"ref\":"        + String(status.ref)          + ",";
-    r += "\"swr\":"        + String(status.swr)          + ",";
-    r += "\"voltage\":"    + String(status.voltage,   1) + ",";
-    r += "\"current\":"    + String(status.current,   1) + ",";
-    r += "\"water_temp\":" + String(status.water_temp,1) + ",";
-    r += "\"plate_temp\":" + String(status.plate_temp,1) + ",";
-    r += "\"coeff\":"      + String(status.coeff,     1) + ",";
-    r += "\"ptt\":"        + String(status.ptt    ? "true":"false") + ",";
-    r += "\"state\":"      + String(status.state   ? "true":"false") + ",";
-    r += "\"alarm\":"      + String(status.alarm   ? "true":"false") + ",";
-    r += "\"pwm_pump\":"   + String(status.pwm_pump)     + ",";
-    r += "\"pwm_cooler\":" + String(status.pwm_cooler)   + ",";
-    r += "\"alert_reason\":\"" + String(status.alert_reason) + "\",";
-    r += "\"band\":\""     + String(status.band) + "\"";
-    r += "}";
+    char r[384];
+    snprintf(r, sizeof(r),
+        "{\"fwd\":%.2f,\"ref\":%.2f,\"swr\":%.2f,\"voltage\":%.1f,\"current\":%.1f,"
+        "\"water_temp\":%.1f,\"plate_temp\":%.1f,\"coeff\":%.1f,"
+        "\"ptt\":%s,\"state\":%s,\"alarm\":%s,\"pwm_pump\":%d,\"pwm_cooler\":%d,"
+        "\"alert_reason\":\"%s\",\"band\":\"%s\"}",
+        status.fwd, status.ref, status.swr, status.voltage, status.current,
+        status.water_temp, status.plate_temp, status.coeff,
+        status.ptt ? "true" : "false", status.state ? "true" : "false",
+        status.alarm ? "true" : "false", status.pwm_pump, status.pwm_cooler,
+        status.alert_reason, status.band);
     server.send(200, "application/json", r);
 }
 
@@ -474,7 +472,7 @@ void handleSaveSettings() {
     if (settings.max_fan_speed_temp < settings.min_fan_speed_temp)
         settings.max_fan_speed_temp = settings.min_fan_speed_temp;
 
-    sendStateData();
+    sendStateData(false);   // fire-and-forget; the settings send below is tracked
     sendSettingsData();
     server.sendHeader("Location", "/"); server.send(303);
 }

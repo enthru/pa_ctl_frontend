@@ -65,7 +65,11 @@ ResponseType waitingForResponse  = RESPONSE_NONE;
 unsigned long responseRequestTime = 0;
 int          responseRetryCount   = 0;
 const int    MAX_RETRIES          = 5;
-const unsigned long RETRY_INTERVAL = 100;
+const unsigned long RETRY_INTERVAL = 300;
+
+// Explicit "fresh data arrived" flags for the blocking request helpers.
+volatile bool settingsReceived    = false;
+volatile bool calibrationReceived = false;
 
 SettingsData pendingSettings;
 StateData    pendingState;

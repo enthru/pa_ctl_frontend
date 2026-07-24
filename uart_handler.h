@@ -5,7 +5,9 @@
 void sendStatusRequest();
 void sendSettingsCommand();
 void sendSettingsData();
-void sendStateData();
+// trackResponse=false sends without arming the ack/retry state machine
+// (used when another tracked send follows immediately in the same operation).
+void sendStateData(bool trackResponse = true);
 void sendCalibrationCommand();
 void sendCalibrationData();
 

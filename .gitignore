@@ -35,3 +35,11 @@ Icon
 #squareline
 .square/*
 square/*
+
+#tools
+.zed/
+CLAUDE.md
+
+#claude artifacts
+.claude/
+graphify-out/
