@@ -50,6 +50,10 @@ extern lv_obj_t *ui_fanSTxt;
 extern lv_obj_t *ui_pumpSTxt;
 extern lv_obj_t *ui_Label59;
 extern lv_obj_t *ui_coeff;
+extern lv_obj_t *ui_pwrPeak;
+extern lv_obj_t *ui_heatTxt;
+extern lv_obj_t *ui_txrxTxt;
+extern lv_obj_t *ui_protTxt;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus

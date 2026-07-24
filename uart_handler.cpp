@@ -279,6 +279,31 @@ static void labelSetCached(lv_obj_t* obj, char* cache, const char* text) {
     }
 }
 
+// How long the power-bar peak marker holds its highest reading before it decays
+// back toward the live value.
+#define PEAK_HOLD_MS 3000
+
+// Recolour a readout as its value approaches / crosses a protection limit.
+// state: -1 uninitialised, 0 ok, 1 warn, 2 alarm. def captures the label's theme
+// colour on first use so "ok" restores it (the UI runs the light theme, so ok
+// must not be forced to a fixed colour). alarmAt<=0 means the threshold is not
+// known yet (settings not received) — stay neutral. lowBad flips the comparison
+// for figures where a *low* value is the fault (e.g. efficiency coeff).
+static void colorThresh(lv_obj_t* obj, int8_t* state, lv_color_t* def, bool* haveDef,
+                        float v, float warnAt, float alarmAt, bool lowBad) {
+    if (!*haveDef) { *def = lv_obj_get_style_text_color(obj, LV_PART_MAIN); *haveDef = true; }
+    int8_t s;
+    if (alarmAt <= 0)   s = 0;
+    else if (lowBad)    s = (v <= alarmAt) ? 2 : (v <= warnAt) ? 1 : 0;
+    else                s = (v >= alarmAt) ? 2 : (v >= warnAt) ? 1 : 0;
+    if (s != *state) {
+        *state = s;
+        lv_color_t c = (s == 2) ? lv_color_hex(0xE00000)
+                     : (s == 1) ? lv_color_hex(0xE07000) : *def;
+        lv_obj_set_style_text_color(obj, c, LV_PART_MAIN | LV_STATE_DEFAULT);
+    }
+}
+
 static void processParsedData() {
     if (waitingForResponse != RESPONSE_NONE) return;
     // No per-frame dump here: status frames arrive several times a second and
@@ -293,10 +318,28 @@ static void processParsedData() {
         static char cPwr[LABEL_CACHE], cSwr[LABEL_CACHE], cRef[LABEL_CACHE],
                     cVol[LABEL_CACHE], cCur[LABEL_CACHE], cWater[LABEL_CACHE],
                     cPlate[LABEL_CACHE], cCoeff[LABEL_CACHE], cPump[LABEL_CACHE],
-                    cFan[LABEL_CACHE], cBand[LABEL_CACHE], cIPwr[LABEL_CACHE];
+                    cFan[LABEL_CACHE], cBand[LABEL_CACHE], cIPwr[LABEL_CACHE],
+                    cHeat[LABEL_CACHE], cTxrx[LABEL_CACHE];
 
         snprintf(buf, sizeof(buf), "%.2fW", status.fwd);        labelSetCached(ui_pwrTxt, cPwr, buf);
         lv_bar_set_value(ui_pwrBar, int(status.fwd), LV_ANIM_ON);
+
+        // Peak-hold: remember the highest forward power seen in the last
+        // PEAK_HOLD_MS, then let it decay back to the live reading. The marker is
+        // a thin line positioned along the bar's on-screen x span (bar: left edge
+        // x=-233, width 354, range 0..1200 -> right edge x=121).
+        static float peakW = 0; static unsigned long peakAt = 0;
+        unsigned long nowMs = millis();
+        if (status.fwd >= peakW || nowMs - peakAt > PEAK_HOLD_MS) { peakW = status.fwd; peakAt = nowMs; }
+        int peakX = -233 + (int)(peakW * (354.0f / 1200.0f));
+        if (peakX > 121) peakX = 121;
+        static int prevPeakX = -1000;
+        if (peakX != prevPeakX) { prevPeakX = peakX; lv_obj_set_x(ui_pwrPeak, peakX); }
+
+        // Dissipated power (heat) ~= DC input (V*I) minus RF output. Clamp at 0.
+        float heatW = status.voltage * status.current - status.fwd;
+        if (heatW < 0) heatW = 0;
+        snprintf(buf, sizeof(buf), "HEAT:%.0fW", heatW);        labelSetCached(ui_heatTxt, cHeat, buf);
 
         // PTT rarely changes but status frames arrive several times a second.
         // lv_obj_set_style_bg_color invalidates + repaints unconditionally, so
@@ -309,6 +352,22 @@ static void processParsedData() {
             lv_obj_set_style_bg_color(ui_menuBtn, pttColor, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_bg_color(ui_Button1, pttColor, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_bg_color(ui_Button2, pttColor, LV_PART_MAIN | LV_STATE_DEFAULT);
+            // Status-strip TX/RX indicator (TX red, RX green).
+            labelSetCached(ui_txrxTxt, cTxrx, status.ptt ? "TX" : "RX");
+            lv_obj_set_style_text_color(ui_txrxTxt,
+                status.ptt ? lv_color_hex(0xE00000) : lv_color_hex(0x00A000),
+                LV_PART_MAIN | LV_STATE_DEFAULT);
+        }
+
+        // Status-strip protection state: TRIP (alarm), PROT (armed), OFF (disabled).
+        static int prevProt = -1;
+        int protS = status.alarm ? 2 : (status.protection_enabled ? 1 : 0);
+        if (protS != prevProt) {
+            prevProt = protS;
+            lv_label_set_text(ui_protTxt, protS == 2 ? "TRIP" : protS == 1 ? "PROT" : "OFF");
+            lv_obj_set_style_text_color(ui_protTxt,
+                protS == 2 ? lv_color_hex(0xE00000) : protS == 1 ? lv_color_hex(0x00A000) : lv_color_hex(0x808080),
+                LV_PART_MAIN | LV_STATE_DEFAULT);
         }
 
         snprintf(buf, sizeof(buf), "%.2f",  status.swr);        labelSetCached(ui_swrValue, cSwr,  buf);
@@ -318,6 +377,18 @@ static void processParsedData() {
         snprintf(buf, sizeof(buf), "%.1fC", status.water_temp); labelSetCached(ui_waterTmp, cWater,buf);
         snprintf(buf, sizeof(buf), "%.1fC", status.plate_temp); labelSetCached(ui_plateTmp, cPlate,buf);
         snprintf(buf, sizeof(buf), "%.1f%%",status.coeff);      labelSetCached(ui_coeff,    cCoeff,buf);
+
+        // Threshold colouring: warn as a reading nears its protection limit, red
+        // once it crosses. Gated internally so styles are only touched on change.
+        static int8_t thState[7] = {-1,-1,-1,-1,-1,-1,-1};
+        static lv_color_t thDef[7]; static bool thHave[7] = {0};
+        colorThresh(ui_swrValue, &thState[0], &thDef[0], &thHave[0], status.swr,        0.8f*settings.max_swr,        settings.max_swr,        false);
+        colorThresh(ui_current,  &thState[1], &thDef[1], &thHave[1], status.current,    0.9f*settings.max_current,    settings.max_current,    false);
+        colorThresh(ui_waterTmp, &thState[2], &thDef[2], &thHave[2], status.water_temp, 0.9f*settings.max_water_temp, settings.max_water_temp, false);
+        colorThresh(ui_plateTmp, &thState[3], &thDef[3], &thHave[3], status.plate_temp, 0.9f*settings.max_plate_temp, settings.max_plate_temp, false);
+        colorThresh(ui_volTxt,   &thState[4], &thDef[4], &thHave[4], status.voltage,    0.95f*settings.max_voltage,   settings.max_voltage,    false);
+        colorThresh(ui_iPWRTxt,  &thState[5], &thDef[5], &thHave[5], status.trxfwd,     0.9f*settings.max_input_power,settings.max_input_power,false);
+        colorThresh(ui_coeff,    &thState[6], &thDef[6], &thHave[6], status.coeff,      1.15f*settings.min_coeff,     settings.min_coeff,      true);
         snprintf(buf, sizeof(buf), "%d%%",  status.pwm_pump);   labelSetCached(ui_pumpSTxt, cPump, buf);
         snprintf(buf, sizeof(buf), "%d%%",  status.pwm_cooler); labelSetCached(ui_fanSTxt,  cFan,  buf);
         // Amp-enable switch flips rarely; set_switch_state add/clear_state is

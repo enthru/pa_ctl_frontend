@@ -5,7 +5,7 @@
 
 #include "ui.h"
 
-lv_obj_t *ui_main = NULL;lv_obj_t *ui_Label1 = NULL;lv_obj_t *ui_pwrBar = NULL;lv_obj_t *ui_pwrTxt = NULL;lv_obj_t *ui_Label4 = NULL;lv_obj_t *ui_swrValue = NULL;lv_obj_t *ui_Label6 = NULL;lv_obj_t *ui_refTxt = NULL;lv_obj_t *ui_Label8 = NULL;lv_obj_t *ui_volTxt = NULL;lv_obj_t *ui_Label10 = NULL;lv_obj_t *ui_current = NULL;lv_obj_t *ui_mainSwitch = NULL;lv_obj_t *ui_menuBtn = NULL;lv_obj_t *ui_Label12 = NULL;lv_obj_t *ui_Label13 = NULL;lv_obj_t *ui_Label14 = NULL;lv_obj_t *ui_waterTmp = NULL;lv_obj_t *ui_Button1 = NULL;lv_obj_t *ui_Button2 = NULL;lv_obj_t *ui_Label2 = NULL;lv_obj_t *ui_Label3 = NULL;lv_obj_t *ui_Label7 = NULL;lv_obj_t *ui_plateTmp = NULL;lv_obj_t *ui_Label58 = NULL;lv_obj_t *ui_iPWRTxt = NULL;lv_obj_t *ui_Label50 = NULL;lv_obj_t *ui_Label51 = NULL;lv_obj_t *ui_fanSTxt = NULL;lv_obj_t *ui_pumpSTxt = NULL;lv_obj_t *ui_Label59 = NULL;lv_obj_t *ui_coeff = NULL;
+lv_obj_t *ui_main = NULL;lv_obj_t *ui_Label1 = NULL;lv_obj_t *ui_pwrBar = NULL;lv_obj_t *ui_pwrTxt = NULL;lv_obj_t *ui_Label4 = NULL;lv_obj_t *ui_swrValue = NULL;lv_obj_t *ui_Label6 = NULL;lv_obj_t *ui_refTxt = NULL;lv_obj_t *ui_Label8 = NULL;lv_obj_t *ui_volTxt = NULL;lv_obj_t *ui_Label10 = NULL;lv_obj_t *ui_current = NULL;lv_obj_t *ui_mainSwitch = NULL;lv_obj_t *ui_menuBtn = NULL;lv_obj_t *ui_Label12 = NULL;lv_obj_t *ui_Label13 = NULL;lv_obj_t *ui_Label14 = NULL;lv_obj_t *ui_waterTmp = NULL;lv_obj_t *ui_Button1 = NULL;lv_obj_t *ui_Button2 = NULL;lv_obj_t *ui_Label2 = NULL;lv_obj_t *ui_Label3 = NULL;lv_obj_t *ui_Label7 = NULL;lv_obj_t *ui_plateTmp = NULL;lv_obj_t *ui_Label58 = NULL;lv_obj_t *ui_iPWRTxt = NULL;lv_obj_t *ui_Label50 = NULL;lv_obj_t *ui_Label51 = NULL;lv_obj_t *ui_fanSTxt = NULL;lv_obj_t *ui_pumpSTxt = NULL;lv_obj_t *ui_Label59 = NULL;lv_obj_t *ui_coeff = NULL;lv_obj_t *ui_pwrPeak = NULL;lv_obj_t *ui_heatTxt = NULL;lv_obj_t *ui_txrxTxt = NULL;lv_obj_t *ui_protTxt = NULL;
 // event funtions
 void ui_event_main( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -340,6 +340,50 @@ lv_obj_set_align( ui_coeff, LV_ALIGN_CENTER );
 lv_label_set_text(ui_coeff,"50%");
 lv_obj_set_style_text_font(ui_coeff, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
 
+// Peak-hold marker: a thin line drawn over the power bar at the highest
+// forward-power position seen recently (positioned each frame in the UART
+// update). Created after ui_pwrBar so it renders on top of the bar fill.
+ui_pwrPeak = lv_obj_create(ui_main);
+lv_obj_remove_style_all( ui_pwrPeak );
+lv_obj_set_width( ui_pwrPeak, 3);
+lv_obj_set_height( ui_pwrPeak, 34);
+lv_obj_set_x( ui_pwrPeak, -233 );   // bar left edge = peak 0
+lv_obj_set_y( ui_pwrPeak, -90 );
+lv_obj_set_align( ui_pwrPeak, LV_ALIGN_CENTER );
+lv_obj_remove_flag( ui_pwrPeak, LV_OBJ_FLAG_SCROLLABLE );
+lv_obj_remove_flag( ui_pwrPeak, LV_OBJ_FLAG_CLICKABLE );   // don't absorb screen-swipe gestures
+lv_obj_set_style_bg_color( ui_pwrPeak, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT );
+lv_obj_set_style_bg_opa( ui_pwrPeak, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT );
+
+// Top status strip (dead space above the power bar): dissipated power (heat),
+// TX/RX state and protection state. Text is filled/coloured in the UART update.
+ui_heatTxt = lv_label_create(ui_main);
+lv_obj_set_width( ui_heatTxt, LV_SIZE_CONTENT);
+lv_obj_set_height( ui_heatTxt, LV_SIZE_CONTENT);
+lv_obj_set_x( ui_heatTxt, -40 );
+lv_obj_set_y( ui_heatTxt, -119 );
+lv_obj_set_align( ui_heatTxt, LV_ALIGN_CENTER );
+lv_label_set_text(ui_heatTxt,"HEAT:0W");
+lv_obj_set_style_text_font(ui_heatTxt, &lv_font_montserrat_16, LV_PART_MAIN| LV_STATE_DEFAULT);
+
+ui_txrxTxt = lv_label_create(ui_main);
+lv_obj_set_width( ui_txrxTxt, LV_SIZE_CONTENT);
+lv_obj_set_height( ui_txrxTxt, LV_SIZE_CONTENT);
+lv_obj_set_x( ui_txrxTxt, 100 );
+lv_obj_set_y( ui_txrxTxt, -119 );
+lv_obj_set_align( ui_txrxTxt, LV_ALIGN_CENTER );
+lv_label_set_text(ui_txrxTxt,"RX");
+lv_obj_set_style_text_font(ui_txrxTxt, &lv_font_montserrat_16, LV_PART_MAIN| LV_STATE_DEFAULT);
+
+ui_protTxt = lv_label_create(ui_main);
+lv_obj_set_width( ui_protTxt, LV_SIZE_CONTENT);
+lv_obj_set_height( ui_protTxt, LV_SIZE_CONTENT);
+lv_obj_set_x( ui_protTxt, 180 );
+lv_obj_set_y( ui_protTxt, -119 );
+lv_obj_set_align( ui_protTxt, LV_ALIGN_CENTER );
+lv_label_set_text(ui_protTxt,"PROT");
+lv_obj_set_style_text_font(ui_protTxt, &lv_font_montserrat_16, LV_PART_MAIN| LV_STATE_DEFAULT);
+
 lv_obj_add_event_cb(ui_mainSwitch, ui_event_mainSwitch, LV_EVENT_ALL, NULL);
 lv_obj_add_event_cb(ui_menuBtn, ui_event_menuBtn, LV_EVENT_ALL, NULL);
 lv_obj_add_event_cb(ui_Button1, ui_event_Button1, LV_EVENT_ALL, NULL);
@@ -385,5 +429,9 @@ ui_fanSTxt= NULL;
 ui_pumpSTxt= NULL;
 ui_Label59= NULL;
 ui_coeff= NULL;
+ui_pwrPeak= NULL;
+ui_heatTxt= NULL;
+ui_txrxTxt= NULL;
+ui_protTxt= NULL;
 
 }
