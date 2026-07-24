@@ -430,22 +430,24 @@ void handleGetSettings() {
         server.send(503, "application/json", "{\"error\":\"Busy\"}");
         return;
     }
-    String r = "{";
-    r += "\"max_swr\":"             + String(settings.max_swr)             + ",";
-    r += "\"max_current\":"         + String(settings.max_current)         + ",";
-    r += "\"max_voltage\":"         + String(settings.max_voltage)         + ",";
-    r += "\"max_plate_temp\":"      + String(settings.max_plate_temp)      + ",";
-    r += "\"max_water_temp\":"      + String(settings.max_water_temp)      + ",";
-    r += "\"max_pump_speed_temp\":" + String(settings.max_pump_speed_temp) + ",";
-    r += "\"min_pump_speed_temp\":" + String(settings.min_pump_speed_temp) + ",";
-    r += "\"max_fan_speed_temp\":"  + String(settings.max_fan_speed_temp)  + ",";
-    r += "\"min_fan_speed_temp\":"  + String(settings.min_fan_speed_temp)  + ",";
-    r += "\"min_coeff\":"           + String(settings.min_coeff)              + ",";
-    r += "\"max_input_power\":"     + String(settings.max_input_power)        + ",";
-    r += "\"protection_enabled\":"  + String(status.protection_enabled ? "true":"false") + ",";
-    r += "\"autoband\":"            + String(settings.autoband ? "true":"false") + ",";
-    r += "\"default_band\":\""      + String(settings.default_band) + "\"";
-    r += "}";
+    // Build into a stack buffer instead of a growing String with a dozen
+    // temporaries — no heap churn, same as the UART send path.
+    char r[512];
+    snprintf(r, sizeof(r),
+        "{\"max_swr\":%d,\"max_current\":%d,\"max_voltage\":%d,"
+        "\"max_plate_temp\":%d,\"max_water_temp\":%d,"
+        "\"max_pump_speed_temp\":%d,\"min_pump_speed_temp\":%d,"
+        "\"max_fan_speed_temp\":%d,\"min_fan_speed_temp\":%d,"
+        "\"min_coeff\":%d,\"max_input_power\":%d,"
+        "\"protection_enabled\":%s,\"autoband\":%s,\"default_band\":\"%s\"}",
+        settings.max_swr, settings.max_current, settings.max_voltage,
+        settings.max_plate_temp, settings.max_water_temp,
+        settings.max_pump_speed_temp, settings.min_pump_speed_temp,
+        settings.max_fan_speed_temp, settings.min_fan_speed_temp,
+        settings.min_coeff, settings.max_input_power,
+        status.protection_enabled ? "true" : "false",
+        settings.autoband ? "true" : "false",
+        settings.default_band);
     server.send(200, "application/json", r);
 }
 
@@ -580,22 +582,18 @@ void handleGetCalibration() {
         server.send(503, "application/json", "{\"error\":\"Busy or timeout\"}");
         return;
     }
-    String r = "{";
-    r += "\"low_fwd_coeff\":"  + String(calibration.low_fwd_coeff,  4) + ",";
-    r += "\"low_rev_coeff\":"  + String(calibration.low_rev_coeff,  4) + ",";
-    r += "\"low_ifwd_coeff\":" + String(calibration.low_ifwd_coeff, 4) + ",";
-    r += "\"mid_fwd_coeff\":"  + String(calibration.mid_fwd_coeff,  4) + ",";
-    r += "\"mid_rev_coeff\":"  + String(calibration.mid_rev_coeff,  4) + ",";
-    r += "\"mid_ifwd_coeff\":" + String(calibration.mid_ifwd_coeff, 4) + ",";
-    r += "\"high_fwd_coeff\":" + String(calibration.high_fwd_coeff, 4) + ",";
-    r += "\"high_rev_coeff\":" + String(calibration.high_rev_coeff, 4) + ",";
-    r += "\"high_ifwd_coeff\":"+ String(calibration.high_ifwd_coeff,4) + ",";
-    r += "\"voltage_coeff\":"  + String(calibration.voltage_coeff,  4) + ",";
-    r += "\"current_coeff\":"  + String(calibration.current_coeff,  4) + ",";
-    r += "\"rsrv_coeff\":"     + String(calibration.rsrv_coeff,     4) + ",";
-    r += "\"acs_zero\":"       + String(calibration.acs_zero,       4) + ",";
-    r += "\"acs_sens\":"       + String(calibration.acs_sens,       4);
-    r += "}";
+    char r[640];
+    snprintf(r, sizeof(r),
+        "{\"low_fwd_coeff\":%.4f,\"low_rev_coeff\":%.4f,\"low_ifwd_coeff\":%.4f,"
+        "\"mid_fwd_coeff\":%.4f,\"mid_rev_coeff\":%.4f,\"mid_ifwd_coeff\":%.4f,"
+        "\"high_fwd_coeff\":%.4f,\"high_rev_coeff\":%.4f,\"high_ifwd_coeff\":%.4f,"
+        "\"voltage_coeff\":%.4f,\"current_coeff\":%.4f,\"rsrv_coeff\":%.4f,"
+        "\"acs_zero\":%.4f,\"acs_sens\":%.4f}",
+        calibration.low_fwd_coeff,  calibration.low_rev_coeff,  calibration.low_ifwd_coeff,
+        calibration.mid_fwd_coeff,  calibration.mid_rev_coeff,  calibration.mid_ifwd_coeff,
+        calibration.high_fwd_coeff, calibration.high_rev_coeff, calibration.high_ifwd_coeff,
+        calibration.voltage_coeff,  calibration.current_coeff,  calibration.rsrv_coeff,
+        calibration.acs_zero,       calibration.acs_sens);
     server.send(200, "application/json", r);
 }
 

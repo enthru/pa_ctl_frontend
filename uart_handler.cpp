@@ -320,10 +320,19 @@ static void processParsedData() {
         snprintf(buf, sizeof(buf), "%.1f%%",status.coeff);      labelSetCached(ui_coeff,    cCoeff,buf);
         snprintf(buf, sizeof(buf), "%d%%",  status.pwm_pump);   labelSetCached(ui_pumpSTxt, cPump, buf);
         snprintf(buf, sizeof(buf), "%d%%",  status.pwm_cooler); labelSetCached(ui_fanSTxt,  cFan,  buf);
-        set_switch_state(ui_mainSwitch, status.state);
+        // Amp-enable switch flips rarely; set_switch_state add/clear_state is
+        // unconditional, so gate it like the PTT recolor above.
+        static int prevState = -1;
+        if ((int)status.state != prevState) {
+            prevState = status.state;
+            set_switch_state(ui_mainSwitch, status.state);
+        }
         labelSetCached(ui_Label2,   cBand, status.band);
-        strncpy(state.band, status.band, sizeof(state.band) - 1);
-        state.band[sizeof(state.band) - 1] = '\0';
+        // Mirror band into state.band only when it actually changed.
+        if (strcmp(state.band, status.band) != 0) {
+            strncpy(state.band, status.band, sizeof(state.band) - 1);
+            state.band[sizeof(state.band) - 1] = '\0';
+        }
         snprintf(buf, sizeof(buf), "%.2fW", status.trxfwd);     labelSetCached(ui_iPWRTxt,  cIPwr, buf);
     }
 }

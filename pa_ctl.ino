@@ -14,6 +14,20 @@ bool warningDismissed = false;
 // telemetry storage
 static unsigned long lastSample = 0;
 
+// Maps a backend alarm reason to the text shown on the warning screen. Single
+// source of truth, iterated below — same table style as BAND_BUTTONS.
+struct AlarmText { const char* reason; const char* text; };
+static const AlarmText ALARM_TEXTS[] = {
+    {"water_temp", "Water temperature too high"},
+    {"plate_temp", "Waterblock temperature too high"},
+    {"coeff",      "Low efficiency"},
+    {"swr",        "High SWR"},
+    {"voltage",    "Overvoltage"},
+    {"current",    "Current too high"},
+    {"ipower",     "High input power"},
+    {"band",       "Band error"},
+};
+
 void setup() {
     Serial.begin(115200);
     Serial1.begin(115200, SERIAL_8N1, 18, 17);
@@ -125,16 +139,9 @@ void loop() {
     // ── Alarm screen routing ──────────────────────────────────────────────────
     if (status.alarm && lv_scr_act() != ui_warning && !warningDismissed) {
         const char* alarmText = "Unknown error";
-        const char* reason = status.alert_reason;
-
-        if      (strcmp(reason, "water_temp") == 0) alarmText = "Water temperature too high";
-        else if (strcmp(reason, "plate_temp") == 0) alarmText = "Waterblock temperature too high";
-        else if (strcmp(reason, "coeff")      == 0) alarmText = "Low efficiency";
-        else if (strcmp(reason, "swr")        == 0) alarmText = "High SWR";
-        else if (strcmp(reason, "voltage")    == 0) alarmText = "Overvoltage";
-        else if (strcmp(reason, "current")    == 0) alarmText = "Current too high";
-        else if (strcmp(reason, "ipower")     == 0) alarmText = "High input power";
-        else if (strcmp(reason, "band")       == 0) alarmText = "Band error";
+        for (auto &a : ALARM_TEXTS) {
+            if (strcmp(status.alert_reason, a.reason) == 0) { alarmText = a.text; break; }
+        }
 
         lv_label_set_text(ui_alertReason, alarmText);
         lv_scr_load(ui_warning);
@@ -157,6 +164,6 @@ void loop() {
 
         if (lv_scr_act() == ui_mainLeft) {
             graphOpened(NULL);
-    }
+        }
     }
 }
