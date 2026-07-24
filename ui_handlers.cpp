@@ -299,8 +299,8 @@ void updateGauges(bool force) {
     char b[24];
     static float lPwr = -1, lSwr = -1, lWat = -1, lPlt = -1, lCur = -1, lVol = -1, lCoe = -1;
     static int8_t sSwr = -1, sWat = -1, sPlt = -1;
-    // On (re)open force a full repaint: the caches outlive the widgets, so a
-    // value unchanged since last view must still be pushed to the new labels.
+    // On (re)open force a full repaint: a value unchanged since the screen was
+    // last shown would otherwise be gated out, leaving the labels stale.
     if (force) { lPwr = lSwr = lWat = lPlt = lCur = lVol = lCoe = -1; sSwr = sWat = sPlt = -1; }
 
     if (status.fwd != lPwr) {

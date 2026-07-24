@@ -11,9 +11,6 @@
 
 bool warningDismissed = false;
 
-// telemetry storage
-static unsigned long lastSample = 0;
-
 // Maps a backend alarm reason to the text shown on the warning screen. Single
 // source of truth, iterated below — same table style as BAND_BUTTONS.
 struct AlarmText { const char* reason; const char* text; };
@@ -152,18 +149,6 @@ void loop() {
         warningDismissed = true;
         lv_scr_load(ui_main);
     }
-    
-    // store telemetry
-    if (now - lastSample >= 1000) {
-        lastSample = now;
-        history.water_temp[history.head] = (int16_t)status.water_temp;
-        history.plate_temp[history.head] = (int16_t)status.plate_temp;
-        history.power[history.head]      = (int16_t)status.fwd;
-        history.head = (history.head + 1) % CHART_POINTS;
-        if (history.count < CHART_POINTS) history.count++;
-
-        if (lv_scr_act() == ui_mainLeft) {
-            graphOpened(NULL);
-        }
-    }
+    // Telemetry trend/gauge updates are driven from the UART status path
+    // (pushSparklines at ~1 Hz + updateGauges); no separate sampling here.
 }
