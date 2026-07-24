@@ -15,14 +15,20 @@ bool warningDismissed = false;
 // source of truth, iterated below — same table style as BAND_BUTTONS.
 struct AlarmText { const char* reason; const char* text; };
 static const AlarmText ALARM_TEXTS[] = {
-    {"water_temp", "Water temperature too high"},
-    {"plate_temp", "Waterblock temperature too high"},
-    {"coeff",      "Low efficiency"},
-    {"swr",        "High SWR"},
-    {"voltage",    "Overvoltage"},
-    {"current",    "Current too high"},
-    {"ipower",     "High input power"},
-    {"band",       "Band error"},
+    {"no_output",      "Current, no output"},
+    {"cur_sensor",     "Current sensor failed"},
+    {"volt_sensor",    "Voltage sensor failed"},
+    {"eff_high",       "Efficiency impossibly high"},
+    {"swr",            "High SWR"},
+    {"voltage",        "Overvoltage"},
+    {"current",        "Overcurrent"},
+    {"ipower",         "Input overdrive"},
+    {"water_temp",     "Water overheating"},
+    {"plate_temp",     "Plate overheating"},
+    {"coeff",          "Low efficiency"},
+    {"band",           "Unknown band"},
+    {"wrong_band",     "Wrong band"},
+    {"unk_freq_on_tx", "Frequency out of band"},
 };
 
 void setup() {
