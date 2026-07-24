@@ -139,7 +139,7 @@ ui_maxSWR = lv_label_create(ui_protection);
 lv_obj_set_width( ui_maxSWR, LV_SIZE_CONTENT);  /// 1
 lv_obj_set_height( ui_maxSWR, LV_SIZE_CONTENT);   /// 1
 lv_obj_set_x( ui_maxSWR, -55 );
-lv_obj_set_y( ui_maxSWR, -82 );
+lv_obj_set_y( ui_maxSWR, -83 );
 lv_obj_set_align( ui_maxSWR, LV_ALIGN_CENTER );
 lv_label_set_text(ui_maxSWR,"X");
 lv_obj_set_style_text_font(ui_maxSWR, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
@@ -148,7 +148,7 @@ ui_maxCurr = lv_label_create(ui_protection);
 lv_obj_set_width( ui_maxCurr, LV_SIZE_CONTENT);  /// 1
 lv_obj_set_height( ui_maxCurr, LV_SIZE_CONTENT);   /// 1
 lv_obj_set_x( ui_maxCurr, 196 );
-lv_obj_set_y( ui_maxCurr, -82 );
+lv_obj_set_y( ui_maxCurr, -83 );
 lv_obj_set_align( ui_maxCurr, LV_ALIGN_CENTER );
 lv_label_set_text(ui_maxCurr,"XX");
 lv_obj_set_style_text_font(ui_maxCurr, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
@@ -226,7 +226,7 @@ if (lv_slider_get_mode(ui_waterTmpSlider)==LV_SLIDER_MODE_RANGE ) lv_slider_set_
 lv_obj_set_width( ui_waterTmpSlider, 150);
 lv_obj_set_height( ui_waterTmpSlider, 10);
 lv_obj_set_x( ui_waterTmpSlider, 96 );
-lv_obj_set_y( ui_waterTmpSlider, 36 );
+lv_obj_set_y( ui_waterTmpSlider, 39 );
 lv_obj_set_align( ui_waterTmpSlider, LV_ALIGN_CENTER );
 
 //Compensating for LVGL9.1 draw crash with bar/slider max value when top-padding is nonzero and right-padding is 0
@@ -256,7 +256,7 @@ ui_maxVoltage = lv_label_create(ui_protection);
 lv_obj_set_width( ui_maxVoltage, LV_SIZE_CONTENT);  /// 1
 lv_obj_set_height( ui_maxVoltage, LV_SIZE_CONTENT);   /// 1
 lv_obj_set_x( ui_maxVoltage, -50 );
-lv_obj_set_y( ui_maxVoltage, -24 );
+lv_obj_set_y( ui_maxVoltage, -20 );
 lv_obj_set_align( ui_maxVoltage, LV_ALIGN_CENTER );
 lv_label_set_text(ui_maxVoltage,"XX");
 lv_obj_set_style_text_font(ui_maxVoltage, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
@@ -304,7 +304,7 @@ ui_maxIPWR = lv_label_create(ui_protection);
 lv_obj_set_width( ui_maxIPWR, LV_SIZE_CONTENT);  /// 1
 lv_obj_set_height( ui_maxIPWR, LV_SIZE_CONTENT);   /// 1
 lv_obj_set_x( ui_maxIPWR, 197 );
-lv_obj_set_y( ui_maxIPWR, -22 );
+lv_obj_set_y( ui_maxIPWR, -20 );
 lv_obj_set_align( ui_maxIPWR, LV_ALIGN_CENTER );
 lv_label_set_text(ui_maxIPWR,"XX");
 lv_obj_set_style_text_font(ui_maxIPWR, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);

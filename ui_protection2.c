@@ -146,7 +146,7 @@ if (lv_slider_get_mode(ui_minPumpSpdTmpSlider)==LV_SLIDER_MODE_RANGE ) lv_slider
 lv_obj_set_width( ui_minPumpSpdTmpSlider, 150);
 lv_obj_set_height( ui_minPumpSpdTmpSlider, 10);
 lv_obj_set_x( ui_minPumpSpdTmpSlider, 74 );
-lv_obj_set_y( ui_minPumpSpdTmpSlider, -90 );
+lv_obj_set_y( ui_minPumpSpdTmpSlider, -91 );
 lv_obj_set_align( ui_minPumpSpdTmpSlider, LV_ALIGN_CENTER );
 
 //Compensating for LVGL9.1 draw crash with bar/slider max value when top-padding is nonzero and right-padding is 0
@@ -167,7 +167,7 @@ if (lv_slider_get_mode(ui_maxFanSpdTmpSlider)==LV_SLIDER_MODE_RANGE ) lv_slider_
 lv_obj_set_width( ui_maxFanSpdTmpSlider, 150);
 lv_obj_set_height( ui_maxFanSpdTmpSlider, 10);
 lv_obj_set_x( ui_maxFanSpdTmpSlider, -145 );
-lv_obj_set_y( ui_maxFanSpdTmpSlider, -37 );
+lv_obj_set_y( ui_maxFanSpdTmpSlider, -38 );
 lv_obj_set_align( ui_maxFanSpdTmpSlider, LV_ALIGN_CENTER );
 
 //Compensating for LVGL9.1 draw crash with bar/slider max value when top-padding is nonzero and right-padding is 0
@@ -188,7 +188,7 @@ if (lv_slider_get_mode(ui_minFanSpdTmpSlider)==LV_SLIDER_MODE_RANGE ) lv_slider_
 lv_obj_set_width( ui_minFanSpdTmpSlider, 150);
 lv_obj_set_height( ui_minFanSpdTmpSlider, 10);
 lv_obj_set_x( ui_minFanSpdTmpSlider, 74 );
-lv_obj_set_y( ui_minFanSpdTmpSlider, -40 );
+lv_obj_set_y( ui_minFanSpdTmpSlider, -38 );
 lv_obj_set_align( ui_minFanSpdTmpSlider, LV_ALIGN_CENTER );
 
 //Compensating for LVGL9.1 draw crash with bar/slider max value when top-padding is nonzero and right-padding is 0
@@ -215,7 +215,7 @@ ui_maxPumpSpeedTmp = lv_label_create(ui_protection2);
 lv_obj_set_width( ui_maxPumpSpeedTmp, LV_SIZE_CONTENT);  /// 1
 lv_obj_set_height( ui_maxPumpSpeedTmp, LV_SIZE_CONTENT);   /// 1
 lv_obj_set_x( ui_maxPumpSpeedTmp, -44 );
-lv_obj_set_y( ui_maxPumpSpeedTmp, -92 );
+lv_obj_set_y( ui_maxPumpSpeedTmp, -91 );
 lv_obj_set_align( ui_maxPumpSpeedTmp, LV_ALIGN_CENTER );
 lv_label_set_text(ui_maxPumpSpeedTmp,"XX");
 lv_obj_set_style_text_font(ui_maxPumpSpeedTmp, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
@@ -224,7 +224,7 @@ ui_maxFanSpeedTmp = lv_label_create(ui_protection2);
 lv_obj_set_width( ui_maxFanSpeedTmp, LV_SIZE_CONTENT);  /// 1
 lv_obj_set_height( ui_maxFanSpeedTmp, LV_SIZE_CONTENT);   /// 1
 lv_obj_set_x( ui_maxFanSpeedTmp, -45 );
-lv_obj_set_y( ui_maxFanSpeedTmp, -36 );
+lv_obj_set_y( ui_maxFanSpeedTmp, -38 );
 lv_obj_set_align( ui_maxFanSpeedTmp, LV_ALIGN_CENTER );
 lv_label_set_text(ui_maxFanSpeedTmp,"XX");
 lv_obj_set_style_text_font(ui_maxFanSpeedTmp, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
@@ -242,7 +242,7 @@ ui_minFanSpeedTmp = lv_label_create(ui_protection2);
 lv_obj_set_width( ui_minFanSpeedTmp, LV_SIZE_CONTENT);  /// 1
 lv_obj_set_height( ui_minFanSpeedTmp, LV_SIZE_CONTENT);   /// 1
 lv_obj_set_x( ui_minFanSpeedTmp, 182 );
-lv_obj_set_y( ui_minFanSpeedTmp, -43 );
+lv_obj_set_y( ui_minFanSpeedTmp, -38 );
 lv_obj_set_align( ui_minFanSpeedTmp, LV_ALIGN_CENTER );
 lv_label_set_text(ui_minFanSpeedTmp,"XX");
 lv_obj_set_style_text_font(ui_minFanSpeedTmp, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
@@ -287,7 +287,7 @@ ui_minCoeff = lv_label_create(ui_protection2);
 lv_obj_set_width( ui_minCoeff, LV_SIZE_CONTENT);  /// 1
 lv_obj_set_height( ui_minCoeff, LV_SIZE_CONTENT);   /// 1
 lv_obj_set_x( ui_minCoeff, 182 );
-lv_obj_set_y( ui_minCoeff, 5 );
+lv_obj_set_y( ui_minCoeff, 10 );
 lv_obj_set_align( ui_minCoeff, LV_ALIGN_CENTER );
 lv_label_set_text(ui_minCoeff,"XX");
 lv_obj_set_style_text_font(ui_minCoeff, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);

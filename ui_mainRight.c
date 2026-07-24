@@ -83,7 +83,7 @@ ui_Label49 = lv_label_create(ui_mainRight);
 lv_obj_set_width( ui_Label49, LV_SIZE_CONTENT);  /// 1
 lv_obj_set_height( ui_Label49, LV_SIZE_CONTENT);   /// 1
 lv_obj_set_x( ui_Label49, 81 );
-lv_obj_set_y( ui_Label49, 119 );
+lv_obj_set_y( ui_Label49, 120 );
 lv_obj_set_align( ui_Label49, LV_ALIGN_CENTER );
 lv_label_set_text(ui_Label49,"Frontend version:");
 
@@ -100,7 +100,7 @@ ui_SSID = lv_label_create(ui_mainRight);
 lv_obj_set_width( ui_SSID, LV_SIZE_CONTENT);  /// 1
 lv_obj_set_height( ui_SSID, LV_SIZE_CONTENT);   /// 1
 lv_obj_set_x( ui_SSID, 3 );
-lv_obj_set_y( ui_SSID, -114 );
+lv_obj_set_y( ui_SSID, -115 );
 lv_obj_set_align( ui_SSID, LV_ALIGN_CENTER );
 lv_label_set_text(ui_SSID,"XXX");
 lv_obj_set_style_text_font(ui_SSID, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
@@ -109,7 +109,7 @@ ui_uptime = lv_label_create(ui_mainRight);
 lv_obj_set_width( ui_uptime, LV_SIZE_CONTENT);  /// 1
 lv_obj_set_height( ui_uptime, LV_SIZE_CONTENT);   /// 1
 lv_obj_set_x( ui_uptime, -3 );
-lv_obj_set_y( ui_uptime, -62 );
+lv_obj_set_y( ui_uptime, -66 );
 lv_obj_set_align( ui_uptime, LV_ALIGN_CENTER );
 lv_label_set_text(ui_uptime,"XXX");
 lv_obj_set_style_text_font(ui_uptime, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
