@@ -15,16 +15,16 @@ extern void ui_mainLeft_screen_init(void);
 extern void ui_mainLeft_screen_destroy(void);
 extern void ui_event_mainLeft( lv_event_t * e);
 extern lv_obj_t *ui_mainLeft;
-extern lv_obj_t *ui_Label60;
-extern lv_obj_t *ui_tempChart;
-extern lv_obj_t *ui_tempChart_Xaxis;
-extern lv_obj_t *ui_tempChart_Yaxis1;
-extern lv_obj_t *ui_tempChart_Yaxis2;
-extern lv_obj_t *ui_powerChart;
-extern lv_obj_t *ui_powerChart_Xaxis;
-extern lv_obj_t *ui_powerChart_Yaxis1;
-extern lv_obj_t *ui_powerChart_Yaxis2;
-extern lv_obj_t *ui_Label42;
+// Gauge dashboard: four arc meters (colour-zoned by protection limit) plus a
+// central column of key electrical readouts. This is a second, graphical view
+// of the main-screen telemetry (swipe left from ui_main).
+extern lv_obj_t *ui_gPwr;      extern lv_obj_t *ui_gPwrVal;
+extern lv_obj_t *ui_gSwr;      extern lv_obj_t *ui_gSwrVal;
+extern lv_obj_t *ui_gWater;    extern lv_obj_t *ui_gWaterVal;
+extern lv_obj_t *ui_gPlate;    extern lv_obj_t *ui_gPlateVal;
+extern lv_obj_t *ui_gCur;
+extern lv_obj_t *ui_gVol;
+extern lv_obj_t *ui_gCoeff;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus

@@ -277,32 +277,71 @@ void setupLVGLButtonHandler() {
     lv_obj_add_event_cb(ui_Button10, saveWiFiSettingsEventHandler, LV_EVENT_CLICKED, NULL);
 }
 
-// charts
+// ui_mainLeft gauge dashboard
 
+// Recolour a gauge's arc as its value nears (amber) / crosses (red) its
+// protection limit; green otherwise. state: -1 uninit, 0 ok, 1 warn, 2 alarm.
+// alarmAt<=0 means the limit isn't known yet (settings not received) -> green.
+static void colorArc(lv_obj_t* arc, int8_t* state, float v, float warnAt, float alarmAt) {
+    int8_t s = (alarmAt <= 0) ? 0 : (v >= alarmAt) ? 2 : (v >= warnAt) ? 1 : 0;
+    if (s != *state) {
+        *state = s;
+        lv_color_t c = (s == 2) ? lv_color_hex(0xE00000)
+                     : (s == 1) ? lv_color_hex(0xE07000) : lv_color_hex(0x00A000);
+        lv_obj_set_style_arc_color(arc, c, LV_PART_INDICATOR);
+    }
+}
+
+// Push the live telemetry onto the ui_mainLeft gauge dashboard. Each figure is
+// gated on its last value so a static reading (e.g. during RX) does no work.
+void updateGauges(bool force) {
+    if (!ui_mainLeft) return;
+    char b[24];
+    static float lPwr = -1, lSwr = -1, lWat = -1, lPlt = -1, lCur = -1, lVol = -1, lCoe = -1;
+    static int8_t sSwr = -1, sWat = -1, sPlt = -1;
+    // On (re)open force a full repaint: the caches outlive the widgets, so a
+    // value unchanged since last view must still be pushed to the new labels.
+    if (force) { lPwr = lSwr = lWat = lPlt = lCur = lVol = lCoe = -1; sSwr = sWat = sPlt = -1; }
+
+    if (status.fwd != lPwr) {
+        lPwr = status.fwd;
+        lv_arc_set_value(ui_gPwr, (int)status.fwd);
+        snprintf(b, sizeof(b), "%.0fW", status.fwd); lv_label_set_text(ui_gPwrVal, b);
+    }
+    if (status.swr != lSwr) {
+        lSwr = status.swr;
+        lv_arc_set_value(ui_gSwr, (int)(status.swr * 10));
+        snprintf(b, sizeof(b), "%.2f", status.swr); lv_label_set_text(ui_gSwrVal, b);
+    }
+    colorArc(ui_gSwr, &sSwr, status.swr, 0.8f * settings.max_swr, settings.max_swr);
+    if (status.water_temp != lWat) {
+        lWat = status.water_temp;
+        lv_arc_set_value(ui_gWater, (int)status.water_temp);
+        snprintf(b, sizeof(b), "%.0fC", status.water_temp); lv_label_set_text(ui_gWaterVal, b);
+    }
+    colorArc(ui_gWater, &sWat, status.water_temp, 0.9f * settings.max_water_temp, settings.max_water_temp);
+    if (status.plate_temp != lPlt) {
+        lPlt = status.plate_temp;
+        lv_arc_set_value(ui_gPlate, (int)status.plate_temp);
+        snprintf(b, sizeof(b), "%.0fC", status.plate_temp); lv_label_set_text(ui_gPlateVal, b);
+    }
+    colorArc(ui_gPlate, &sPlt, status.plate_temp, 0.9f * settings.max_plate_temp, settings.max_plate_temp);
+    if (status.current != lCur) {
+        lCur = status.current;
+        snprintf(b, sizeof(b), "%.1fA", status.current); lv_label_set_text(ui_gCur, b);
+    }
+    if (status.voltage != lVol) {
+        lVol = status.voltage;
+        snprintf(b, sizeof(b), "%.1fV", status.voltage); lv_label_set_text(ui_gVol, b);
+    }
+    if (status.coeff != lCoe) {
+        lCoe = status.coeff;
+        snprintf(b, sizeof(b), "%.0f%%", status.coeff); lv_label_set_text(ui_gCoeff, b);
+    }
+}
+
+// Bound to ui_mainLeft's SCREEN_LOADED: paint current values immediately so the
+// gauges aren't blank until the next UART frame.
 void graphOpened(lv_event_t * /*e*/) {
-    static int32_t pwr_buf[CHART_POINTS];
-    static int32_t tmp_buf[CHART_POINTS];
-
-    for (int i = 0; i < CHART_POINTS; i++) {
-        pwr_buf[i] = LV_CHART_POINT_NONE;
-        tmp_buf[i] = LV_CHART_POINT_NONE;
-    }
-
-    uint8_t count = (history.count > CHART_POINTS) ? CHART_POINTS : history.count;
-    uint8_t start = (count < CHART_POINTS) ? 0 : history.head;
-
-    for (uint8_t i = 0; i < count; i++) {
-        uint8_t idx = (start + i) % CHART_POINTS;
-        pwr_buf[i] = history.power[idx];
-        tmp_buf[i] = history.plate_temp[idx];
-    }
-
-    lv_chart_series_t *ser_pwr  = lv_chart_get_series_next(ui_powerChart, NULL);
-    lv_chart_series_t *ser_temp = lv_chart_get_series_next(ui_tempChart,  NULL);
-
-    if (ser_pwr)  lv_chart_set_ext_y_array(ui_powerChart, ser_pwr,  pwr_buf);
-    if (ser_temp) lv_chart_set_ext_y_array(ui_tempChart,  ser_temp, tmp_buf);
-
-    lv_chart_refresh(ui_powerChart);
-    lv_chart_refresh(ui_tempChart);
+    updateGauges(true);
 }

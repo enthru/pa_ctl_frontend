@@ -406,6 +406,10 @@ static void processParsedData() {
         }
         snprintf(buf, sizeof(buf), "%.2fW", status.trxfwd);     labelSetCached(ui_iPWRTxt,  cIPwr, buf);
     }
+    // Graphical dashboard: keep the arc gauges live while ui_mainLeft is shown.
+    else if (lv_scr_act() == ui_mainLeft) {
+        updateGauges(false);
+    }
 }
 
 static void processSettingsData() {

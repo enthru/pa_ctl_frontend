@@ -34,6 +34,7 @@ void togglePTT(lv_event_t *e);
 // ─── WiFi UI ──────────────────────────────────────────────────────────────────
 void setupLVGLButtonHandler();
 
-// chart
-void graphOpened(lv_event_t *e);
+// ui_mainLeft gauge dashboard
+void graphOpened(lv_event_t *e);   // SCREEN_LOADED: initial paint
+void updateGauges(bool force);     // live refresh from the UART status path
 
