@@ -73,7 +73,6 @@ typedef struct {
     bool alarm;
 } StateData;
 
-char* getJsonValue(char* json, const char* key);
 int parseStatusJson(char* jsonString);
 int parseSettingsJson(char* jsonString);
 int parseCalibrationJson(char* jsonString);

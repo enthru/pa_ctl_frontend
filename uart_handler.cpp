@@ -1,5 +1,5 @@
 #include "uart_handler.h"
-#include "ui_handlers.h"   // getCurrentScreenName, set_switch_state
+#include "ui_handlers.h"   // set_switch_state
 
 // Owned by pa_ctl.ino. loop() auto-returns from ui_warning to ui_main only for
 // alarm-driven warnings (it checks !warningDismissed). The comms-error screen
@@ -19,19 +19,6 @@ static bool parseAckResponse(const char* json, ResponseType expectedResponse);
 // arrived, or a manual request completed). They are NOT called per status
 // frame — that would flood the UART hot path. Each line is TRACE-gated, so at
 // LOG_LEVEL < 3 the whole body compiles to nothing.
-void debugStatusData() {
-    LOG_TRACE("=== STATUS DATA ===");
-    LOG_TRACE("FWD: %.2f  REF: %.2f  TRX FWD: %.2f  SWR: %.2f",
-              status.fwd, status.ref, status.trxfwd, status.swr);
-    LOG_TRACE("Current: %.2f  Voltage: %.2f  Water: %.1f  Plate: %.1f",
-              status.current, status.voltage, status.water_temp, status.plate_temp);
-    LOG_TRACE("Coeff: %.1f  Band: %s  Alert: %s", status.coeff, status.band, status.alert_reason);
-    LOG_TRACE("Alarm: %d  State: %d  PTT: %d", status.alarm, status.state, status.ptt);
-    LOG_TRACE("PWM Pump: %d  Cooler: %d  AutoPump: %d  AutoFan: %d",
-              status.pwm_pump, status.pwm_cooler, status.auto_pwm_pump, status.auto_pwm_fan);
-    LOG_TRACE("===================");
-}
-
 void debugSettingsData() {
     LOG_TRACE("=== SETTINGS DATA ===");
     LOG_TRACE("Max SWR: %d  Current: %d  Voltage: %d",
@@ -295,8 +282,8 @@ static void labelSetCached(lv_obj_t* obj, char* cache, const char* text) {
 static void processParsedData() {
     if (waitingForResponse != RESPONSE_NONE) return;
     // No per-frame dump here: status frames arrive several times a second and
-    // debugStatusData() on every one would flood serial and stall this hot
-    // path. Enable LOG_LEVEL 3 and dump on demand instead if you need it.
+    // dumping every one would flood serial and stall this hot path. Enable
+    // LOG_LEVEL 3 and inspect the raw "RX:" trace line instead if you need it.
     // Direct pointer compare — avoids building a screen-name string and strcmp'ing it.
     if (lv_scr_act() == ui_main) {
         // Format into a stack buffer instead of temporary Arduino Strings to

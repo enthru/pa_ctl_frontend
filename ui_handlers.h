@@ -4,9 +4,6 @@
 // ─── Display init (owns gfx/bus — PINS_JC4827W543.h included only here) ──────
 bool initDisplay();
 
-// ─── Screen name helper ───────────────────────────────────────────────────────
-const char* getCurrentScreenName();
-
 // ─── LVGL display callbacks ───────────────────────────────────────────────────
 void my_print(lv_log_level_t level, const char *buf);
 uint32_t millis_cb(void);

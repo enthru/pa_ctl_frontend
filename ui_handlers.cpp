@@ -21,21 +21,19 @@ bool initDisplay() {
     return true;
 }
 
-// ─── Screen name helper ───────────────────────────────────────────────────────
-
-const char* getCurrentScreenName() {
-    lv_obj_t* active = lv_scr_act();
-    if (active == ui_main)       return "main";
-    if (active == ui_menu)       return "menu";
-    if (active == ui_protection) return "protection";
-    if (active == ui_wifi)       return "wifi";
-    if (active == ui_mainLeft)   return "mainLeft";
-    if (active == ui_bands)      return "bands";
-    if (active == ui_mainRight)  return "mainRight";
-    if (active == ui_warning)    return "warning";
-    if (active == ui_protection2)return "protection2";
-    return "none";
-}
+// ─── Band button table ────────────────────────────────────────────────────────
+// Single source of truth for the band-selection buttons. The addresses of the
+// ui_Button* globals are stable (the pointers themselves are populated by
+// ui_init()), so both bandOpened() and set_band() iterate this one table.
+struct BandButton { lv_obj_t** btn; const char* band; };
+static const BandButton BAND_BUTTONS[] = {
+    {&ui_Button160m, "160m"}, {&ui_Button80m,  "80m"},
+    {&ui_Button60m,  "60m"},  {&ui_Button40m,  "40m"},
+    {&ui_Button30m,  "30m"},  {&ui_Button20m,  "20m"},
+    {&ui_Button17m,  "17m"},  {&ui_Button15m,  "15m"},
+    {&ui_Button12m,  "12m"},  {&ui_Button10m,  "10m"},
+    {&ui_Button6m,   "6m"},
+};
 
 // ─── LVGL display callbacks ───────────────────────────────────────────────────
 
@@ -139,15 +137,7 @@ void protectionOpened(lv_event_t * /*e*/) {
 }
 
 void bandOpened(lv_event_t * /*e*/) {
-    struct { lv_obj_t **btn; const char *band; } map[] = {
-        {&ui_Button160m, "160m"}, {&ui_Button80m,  "80m"},
-        {&ui_Button60m,  "60m"},  {&ui_Button40m,  "40m"},
-        {&ui_Button30m,  "30m"},  {&ui_Button20m,  "20m"},
-        {&ui_Button17m,  "17m"},  {&ui_Button15m,  "15m"},
-        {&ui_Button12m,  "12m"},  {&ui_Button10m,  "10m"},
-        {&ui_Button6m,   "6m"},
-    };
-    for (auto &m : map) {
+    for (auto &m : BAND_BUTTONS) {
         bool active = strcmp(state.band, m.band) == 0;
         lv_obj_set_style_bg_color(*m.btn,
             active ? lv_color_hex(0xC00000) : lv_color_hex(0x2196F3),
@@ -229,15 +219,7 @@ void set_band(lv_event_t *e) {
     if (backendBusy() || isTransmitting()) return;   // no band change mid-transaction or during TX
     memset(state.band, 0, sizeof(state.band));
 
-    struct { lv_obj_t **btn; const char *band; } map[] = {
-        {&ui_Button160m, "160m"}, {&ui_Button80m,  "80m"},
-        {&ui_Button60m,  "60m"},  {&ui_Button40m,  "40m"},
-        {&ui_Button30m,  "30m"},  {&ui_Button20m,  "20m"},
-        {&ui_Button17m,  "17m"},  {&ui_Button15m,  "15m"},
-        {&ui_Button12m,  "12m"},  {&ui_Button10m,  "10m"},
-        {&ui_Button6m,   "6m"},
-    };
-    for (auto &m : map) {
+    for (auto &m : BAND_BUTTONS) {
         if (target == *m.btn) {
             strncpy(state.band, m.band, sizeof(state.band) - 1);
             LOG_INFO("Band set: %s", state.band);

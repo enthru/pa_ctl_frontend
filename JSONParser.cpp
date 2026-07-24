@@ -9,58 +9,6 @@ extern SettingsData settings;
 extern StateData state;
 extern CalibrationData calibration;
 
-// ─── Legacy single-key lookup ──────────────────────────────────────────────────
-// Kept for API compatibility (declared in JSONParser.h). The parsers below no
-// longer use it — they walk each object once via forEachPair() instead.
-char* getJsonValue(char* json, const char* key) {
-    static char value[128];
-    value[0] = '\0';
-
-    if (!json || !key) {
-        return value;
-    }
-
-    char searchKey[64];
-    snprintf(searchKey, sizeof(searchKey), "\"%s\":", key);
-
-    char* keyPos = strstr(json, searchKey);
-    if (!keyPos) {
-        return value;
-    }
-
-    char* valueStart = keyPos + strlen(searchKey);
-
-    while (*valueStart == ' ') {
-        valueStart++;
-    }
-
-    if (*valueStart == '"') {
-        valueStart++;
-        char* valueEnd = strchr(valueStart, '"');
-        if (valueEnd) {
-            int len = valueEnd - valueStart;
-            if (len > 0 && len < 127) {
-                strncpy(value, valueStart, len);
-                value[len] = '\0';
-            }
-        }
-    } else {
-        char* valueEnd = valueStart;
-
-        while (*valueEnd && *valueEnd != ',' && *valueEnd != '}' && *valueEnd != ' ' && *valueEnd != '\n' && *valueEnd != '\r') {
-            valueEnd++;
-        }
-
-        int len = valueEnd - valueStart;
-        if (len > 0 && len < 127) {
-            strncpy(value, valueStart, len);
-            value[len] = '\0';
-        }
-    }
-
-    return value;
-}
-
 // ─── Single-pass object tokenizer ──────────────────────────────────────────────
 // Walks one flat JSON object in place, inserting NUL terminators, and invokes
 // handler(key, value) for every "key":value pair. Surrounding quotes are

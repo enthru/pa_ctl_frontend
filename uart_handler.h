@@ -31,6 +31,5 @@ void handleResponseRetry();
 void handleTestRequests();
 
 // ─── Debug helpers ────────────────────────────────────────────────────────────
-void debugStatusData();
 void debugSettingsData();
 void debugCalibrationData();
