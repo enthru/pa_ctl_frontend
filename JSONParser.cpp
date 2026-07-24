@@ -8,17 +8,20 @@ extern SettingsData settings;
 extern StateData state;
 extern CalibrationData calibration;
 
+// ─── Legacy single-key lookup ──────────────────────────────────────────────────
+// Kept for API compatibility (declared in JSONParser.h). The parsers below no
+// longer use it — they walk each object once via forEachPair() instead.
 char* getJsonValue(char* json, const char* key) {
     static char value[128];
     value[0] = '\0';
-    
+
     if (!json || !key) {
         return value;
     }
-    
+
     char searchKey[64];
     snprintf(searchKey, sizeof(searchKey), "\"%s\":", key);
-    
+
     char* keyPos = strstr(json, searchKey);
     if (!keyPos) {
         return value;
@@ -46,199 +49,211 @@ char* getJsonValue(char* json, const char* key) {
         while (*valueEnd && *valueEnd != ',' && *valueEnd != '}' && *valueEnd != ' ' && *valueEnd != '\n' && *valueEnd != '\r') {
             valueEnd++;
         }
-        
+
         int len = valueEnd - valueStart;
         if (len > 0 && len < 127) {
             strncpy(value, valueStart, len);
             value[len] = '\0';
         }
     }
-    
+
     return value;
 }
 
-int parseStatusJson(char* jsonString) {
-    if (!jsonString) {
-        return 0;
+// ─── Single-pass object tokenizer ──────────────────────────────────────────────
+// Walks one flat JSON object in place, inserting NUL terminators, and invokes
+// handler(key, value) for every "key":value pair. Surrounding quotes are
+// stripped from string values. This replaces the previous approach of copying
+// the object and then running strstr()+snprintf() once per field (O(fields ×
+// length), plus a searchKey format per lookup) — here each object is scanned a
+// single time. `buf` is mutated; pass a scratch copy, not the receive buffer.
+
+typedef void (*KVHandler)(const char* key, const char* val);
+
+static void forEachPair(char* buf, KVHandler handler) {
+    char* p = strchr(buf, '{');
+    if (!p) return;
+    p++;
+
+    while (*p) {
+        while (*p == ' ' || *p == ',' || *p == '\n' || *p == '\r' || *p == '\t') p++;
+        if (*p != '"') break;                 // '}' or malformed → done
+
+        char* key = ++p;
+        while (*p && *p != '"') p++;
+        if (*p != '"') break;
+        *p++ = '\0';                          // terminate key
+
+        while (*p == ' ') p++;
+        if (*p != ':') break;
+        p++;
+        while (*p == ' ') p++;
+
+        char* val;
+        if (*p == '"') {                      // string value
+            val = ++p;
+            while (*p && *p != '"') p++;
+            if (*p != '"') break;
+            *p++ = '\0';                      // terminate value
+        } else {                              // number / bool
+            val = p;
+            while (*p && *p != ',' && *p != '}' &&
+                   *p != ' ' && *p != '\n' && *p != '\r') p++;
+            if (*p == '}') {                  // last field: keep '}' out of val
+                *p = '\0';
+                handler(key, val);
+                break;
+            }
+            if (*p) *p++ = '\0';
+        }
+        handler(key, val);
     }
-    
-    char* statusStart = strstr(jsonString, "\"status\":");
-    if (!statusStart) {
-        return 0;
-    }
-    
-    char* braceStart = strchr(statusStart, '{');
+}
+
+// Copy the object delimited by the first {...} after `objKey` into `out`.
+// Returns 1 on success, 0 if the key/braces are missing or too large.
+static int extractObject(char* jsonString, const char* objKey, char* out, size_t outSize) {
+    if (!jsonString) return 0;
+
+    char* keyStart = strstr(jsonString, objKey);
+    if (!keyStart) return 0;
+
+    char* braceStart = strchr(keyStart, '{');
+    if (!braceStart) return 0;
     char* braceEnd = strchr(braceStart, '}');
-    if (!braceStart || !braceEnd) {
-        return 0;
-    }
-    
-    char statusObj[512];
+    if (!braceEnd) return 0;
+
     int objLen = braceEnd - braceStart + 1;
-    if (objLen <= 0 || objLen > 511) {
+    if (objLen <= 0 || (size_t)objLen > outSize - 1) return 0;
+
+    strncpy(out, braceStart, objLen);
+    out[objLen] = '\0';
+    return 1;
+}
+
+// ─── Status ─────────────────────────────────────────────────────────────────────
+
+static void statusPair(const char* k, const char* v) {
+    if      (!strcmp(k, "fwd"))                status.fwd        = atof(v);
+    else if (!strcmp(k, "ref"))                status.ref        = atof(v);
+    else if (!strcmp(k, "trxfwd"))             status.trxfwd     = atof(v);
+    else if (!strcmp(k, "swr"))                status.swr        = atof(v);
+    else if (!strcmp(k, "current"))            status.current    = atof(v);
+    else if (!strcmp(k, "voltage"))            status.voltage    = atof(v);
+    else if (!strcmp(k, "water_temp"))         status.water_temp = atof(v);
+    else if (!strcmp(k, "plate_temp"))         status.plate_temp = atof(v);
+    else if (!strcmp(k, "coeff"))              status.coeff      = atof(v);
+    else if (!strcmp(k, "alarm"))              status.alarm      = !strcmp(v, "true");
+    else if (!strcmp(k, "state"))              status.state      = !strcmp(v, "true");
+    else if (!strcmp(k, "ptt"))                status.ptt        = !strcmp(v, "true");
+    else if (!strcmp(k, "pwm_pump"))           status.pwm_pump   = atoi(v);
+    else if (!strcmp(k, "pwm_cooler"))         status.pwm_cooler = atoi(v);
+    else if (!strcmp(k, "auto_pwm_pump"))      status.auto_pwm_pump      = !strcmp(v, "true");
+    else if (!strcmp(k, "auto_pwm_fan"))       status.auto_pwm_fan       = !strcmp(v, "true");
+    else if (!strcmp(k, "protection_enabled")) status.protection_enabled = !strcmp(v, "true");
+    else if (!strcmp(k, "alert_reason")) {
+        strncpy(status.alert_reason, v, sizeof(status.alert_reason) - 1);
+        status.alert_reason[sizeof(status.alert_reason) - 1] = '\0';
+    }
+    else if (!strcmp(k, "band")) {
+        strncpy(status.band, v, sizeof(status.band) - 1);
+        status.band[sizeof(status.band) - 1] = '\0';
+    }
+}
+
+int parseStatusJson(char* jsonString) {
+    char statusObj[512];
+    if (!extractObject(jsonString, "\"status\":", statusObj, sizeof(statusObj))) {
         return 0;
     }
-    
-    strncpy(statusObj, braceStart, objLen);
-    statusObj[objLen] = '\0';
-    
+
 #if DEBUG
     Serial.print("[DEBUG] Parsing status object: ");
     Serial.println(statusObj);
 #endif
 
-    status.fwd = atof(getJsonValue(statusObj, "fwd"));
-    status.ref = atof(getJsonValue(statusObj, "ref"));
-    status.trxfwd = atof(getJsonValue(statusObj, "trxfwd"));
-    status.swr = atof(getJsonValue(statusObj, "swr"));
-    status.current = atof(getJsonValue(statusObj, "current"));
-    status.voltage = atof(getJsonValue(statusObj, "voltage"));
-    status.water_temp = atof(getJsonValue(statusObj, "water_temp"));
-    status.plate_temp = atof(getJsonValue(statusObj, "plate_temp"));
-    status.coeff = atof(getJsonValue(statusObj, "coeff"));
-    
-    char* alarmStr = getJsonValue(statusObj, "alarm");
-    status.alarm = (strcmp(alarmStr, "true") == 0);
-    
-    char* alertReason = getJsonValue(statusObj, "alert_reason");
-    strncpy(status.alert_reason, alertReason, sizeof(status.alert_reason) - 1);
-    status.alert_reason[sizeof(status.alert_reason) - 1] = '\0';
-    
-    char* stateStr = getJsonValue(statusObj, "state");
-    status.state = (strcmp(stateStr, "true") == 0);
-    
-    char* pttStr = getJsonValue(statusObj, "ptt");
-    status.ptt = (strcmp(pttStr, "true") == 0);
-    
-    char* bandStr = getJsonValue(statusObj, "band");
-    strncpy(status.band, bandStr, sizeof(status.band) - 1);
-    status.band[sizeof(status.band) - 1] = '\0';
-    
-    status.pwm_pump = atoi(getJsonValue(statusObj, "pwm_pump"));
-    status.pwm_cooler = atoi(getJsonValue(statusObj, "pwm_cooler"));
-    
-    char* autoPumpStr = getJsonValue(statusObj, "auto_pwm_pump");
-    status.auto_pwm_pump = (strcmp(autoPumpStr, "true") == 0);
-    
-    char* autoFanStr = getJsonValue(statusObj, "auto_pwm_fan");
-    status.auto_pwm_fan = (strcmp(autoFanStr, "true") == 0);
-    
-    //bool
-    char* protectionStr = getJsonValue(statusObj, "protection_enabled");
-    status.protection_enabled = (strcmp(protectionStr, "true") == 0);
-    
+    forEachPair(statusObj, statusPair);
+
 #if DEBUG
     Serial.println("[DEBUG] Status parsing completed successfully");
 #endif
-    
     return 1;
 }
 
+// ─── Calibration ─────────────────────────────────────────────────────────────────
+
+static void calibrationPair(const char* k, const char* v) {
+    if      (!strcmp(k, "low_fwd_coeff"))   calibration.low_fwd_coeff   = atof(v);
+    else if (!strcmp(k, "low_rev_coeff"))   calibration.low_rev_coeff   = atof(v);
+    else if (!strcmp(k, "low_ifwd_coeff"))  calibration.low_ifwd_coeff  = atof(v);
+    else if (!strcmp(k, "mid_fwd_coeff"))   calibration.mid_fwd_coeff   = atof(v);
+    else if (!strcmp(k, "mid_rev_coeff"))   calibration.mid_rev_coeff   = atof(v);
+    else if (!strcmp(k, "mid_ifwd_coeff"))  calibration.mid_ifwd_coeff  = atof(v);
+    else if (!strcmp(k, "high_fwd_coeff"))  calibration.high_fwd_coeff  = atof(v);
+    else if (!strcmp(k, "high_rev_coeff"))  calibration.high_rev_coeff  = atof(v);
+    else if (!strcmp(k, "high_ifwd_coeff")) calibration.high_ifwd_coeff = atof(v);
+    else if (!strcmp(k, "voltage_coeff"))   calibration.voltage_coeff   = atof(v);
+    else if (!strcmp(k, "current_coeff"))   calibration.current_coeff   = atof(v);
+    else if (!strcmp(k, "rsrv_coeff"))      calibration.rsrv_coeff      = atof(v);
+    else if (!strcmp(k, "acs_zero"))        calibration.acs_zero        = atof(v);
+    else if (!strcmp(k, "acs_sens"))        calibration.acs_sens        = atof(v);
+}
+
 int parseCalibrationJson(char* jsonString) {
-    if (!jsonString) {
-        return 0;
-    }
-    
-    char* calibrationStart = strstr(jsonString, "\"calibration\":");
-    if (!calibrationStart) {
-        return 0;
-    }
-    
-    char* braceStart = strchr(calibrationStart, '{');
-    char* braceEnd = strchr(braceStart, '}');
-    if (!braceStart || !braceEnd) {
-        return 0;
-    }
-    
     char calibrationObj[512];
-    int objLen = braceEnd - braceStart + 1;
-    if (objLen <= 0 || objLen > 511) {
+    if (!extractObject(jsonString, "\"calibration\":", calibrationObj, sizeof(calibrationObj))) {
         return 0;
     }
-    
-    strncpy(calibrationObj, braceStart, objLen);
-    calibrationObj[objLen] = '\0';
-    
+
 #if DEBUG
     Serial.print("[DEBUG] Parsing calibration object: ");
     Serial.println(calibrationObj);
 #endif
 
-    calibration.low_fwd_coeff = atof(getJsonValue(calibrationObj, "low_fwd_coeff"));
-    calibration.low_rev_coeff = atof(getJsonValue(calibrationObj, "low_rev_coeff"));
-    calibration.low_ifwd_coeff = atof(getJsonValue(calibrationObj, "low_ifwd_coeff"));
-    calibration.mid_fwd_coeff = atof(getJsonValue(calibrationObj, "mid_fwd_coeff"));
-    calibration.mid_rev_coeff = atof(getJsonValue(calibrationObj, "mid_rev_coeff"));
-    calibration.mid_ifwd_coeff = atof(getJsonValue(calibrationObj, "mid_ifwd_coeff"));
-    calibration.high_fwd_coeff = atof(getJsonValue(calibrationObj, "high_fwd_coeff"));
-    calibration.high_rev_coeff = atof(getJsonValue(calibrationObj, "high_rev_coeff"));
-    calibration.high_ifwd_coeff = atof(getJsonValue(calibrationObj, "high_ifwd_coeff"));
-    calibration.voltage_coeff = atof(getJsonValue(calibrationObj, "voltage_coeff"));
-    calibration.current_coeff = atof(getJsonValue(calibrationObj, "current_coeff"));
-    calibration.rsrv_coeff = atof(getJsonValue(calibrationObj, "rsrv_coeff"));
-    calibration.acs_zero = atof(getJsonValue(calibrationObj, "acs_zero"));
-    calibration.acs_sens = atof(getJsonValue(calibrationObj, "acs_sens"));
+    forEachPair(calibrationObj, calibrationPair);
 
-    
 #if DEBUG
     Serial.println("[DEBUG] Calibration parsing completed successfully");
 #endif
-    
     return 1;
 }
 
+// ─── Settings ─────────────────────────────────────────────────────────────────────
+
+static void settingsPair(const char* k, const char* v) {
+    if      (!strcmp(k, "max_swr"))             settings.max_swr             = atoi(v);
+    else if (!strcmp(k, "max_current"))         settings.max_current         = atoi(v);
+    else if (!strcmp(k, "max_voltage"))         settings.max_voltage         = atoi(v);
+    else if (!strcmp(k, "max_water_temp"))      settings.max_water_temp      = atoi(v);
+    else if (!strcmp(k, "max_plate_temp"))      settings.max_plate_temp      = atoi(v);
+    else if (!strcmp(k, "max_pump_speed_temp")) settings.max_pump_speed_temp = atoi(v);
+    else if (!strcmp(k, "min_pump_speed_temp")) settings.min_pump_speed_temp = atoi(v);
+    else if (!strcmp(k, "max_fan_speed_temp"))  settings.max_fan_speed_temp  = atoi(v);
+    else if (!strcmp(k, "min_fan_speed_temp"))  settings.min_fan_speed_temp  = atoi(v);
+    else if (!strcmp(k, "max_input_power"))     settings.max_input_power     = atof(v);
+    else if (!strcmp(k, "min_coeff"))           settings.min_coeff           = atof(v);
+    else if (!strcmp(k, "autoband"))            settings.autoband            = !strcmp(v, "true");
+    else if (!strcmp(k, "default_band")) {
+        strncpy(settings.default_band, v, sizeof(settings.default_band) - 1);
+        settings.default_band[sizeof(settings.default_band) - 1] = '\0';
+    }
+}
+
 int parseSettingsJson(char* jsonString) {
-    if (!jsonString) {
-        return 0;
-    }
-    
-    char* settingsStart = strstr(jsonString, "\"settings\":");
-    if (!settingsStart) {
-        return 0;
-    }
-    
-    char* braceStart = strchr(settingsStart, '{');
-    char* braceEnd = strchr(braceStart, '}');
-    if (!braceStart || !braceEnd) {
-        return 0;
-    }
-    
     char settingsObj[512];
-    int objLen = braceEnd - braceStart + 1;
-    if (objLen <= 0 || objLen > 511) {
+    if (!extractObject(jsonString, "\"settings\":", settingsObj, sizeof(settingsObj))) {
         return 0;
     }
-    
-    strncpy(settingsObj, braceStart, objLen);
-    settingsObj[objLen] = '\0';
-    
+
 #if DEBUG
     Serial.print("[DEBUG] Parsing settings object: ");
     Serial.println(settingsObj);
 #endif
 
-    settings.max_swr             = atoi(getJsonValue(settingsObj, "max_swr"));
-    settings.max_current         = atoi(getJsonValue(settingsObj, "max_current"));
-    settings.max_voltage         = atoi(getJsonValue(settingsObj, "max_voltage"));
-    settings.max_water_temp      = atoi(getJsonValue(settingsObj, "max_water_temp"));
-    settings.max_plate_temp      = atoi(getJsonValue(settingsObj, "max_plate_temp"));
-    settings.max_pump_speed_temp = atoi(getJsonValue(settingsObj, "max_pump_speed_temp"));
-    settings.min_pump_speed_temp = atoi(getJsonValue(settingsObj, "min_pump_speed_temp"));
-    settings.max_fan_speed_temp  = atoi(getJsonValue(settingsObj, "max_fan_speed_temp"));
-    settings.min_fan_speed_temp  = atoi(getJsonValue(settingsObj, "min_fan_speed_temp"));
-    settings.max_input_power     = atof(getJsonValue(settingsObj, "max_input_power"));
-    settings.min_coeff           = atof(getJsonValue(settingsObj, "min_coeff"));
+    forEachPair(settingsObj, settingsPair);
 
-    char* autobandStr = getJsonValue(settingsObj, "autoband");
-    settings.autoband = (strcmp(autobandStr, "true") == 0);
-    
-    char* defaultBandStr = getJsonValue(settingsObj, "default_band");
-    strncpy(settings.default_band, defaultBandStr, sizeof(settings.default_band) - 1);
-    settings.default_band[sizeof(settings.default_band) - 1] = '\0';
-    
 #if DEBUG
     Serial.println("[DEBUG] Settings parsing completed successfully");
 #endif
-    
     return 1;
 }
