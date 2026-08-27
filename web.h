@@ -16,6 +16,7 @@ void handleGetCalibration();
 void handleSaveCalibration();
 void handleSetBand();
 void handleSetState();
+void handleSetDebug();
 void handleEvents();
 void handleResetAlert();
 void handleResetError();

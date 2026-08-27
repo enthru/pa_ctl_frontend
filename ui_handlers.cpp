@@ -303,17 +303,34 @@ void updateGauges(bool force) {
     // last shown would otherwise be gated out, leaving the labels stale.
     if (force) { lPwr = lSwr = lWat = lPlt = lCur = lVol = lCoe = -1; sSwr = sWat = sPlt = -1; }
 
+    // Same rule as the ui_main readouts: in debug mode fwd/current/voltage are raw ADC
+    // volts, so retag them and blank the derived SWR/efficiency gauges rather than let a
+    // dial read "2W" or "1.70" for what is actually a detector voltage.
+    const bool dbg = status.debug;
+    // Debug flips the meaning of the cached values, so force one full repaint on entry
+    // and exit — otherwise an unchanged number keeps its stale unit suffix.
+    static int lDbg = -1;
+    if ((int)dbg != lDbg) { lDbg = dbg; lPwr = lSwr = lWat = lPlt = lCur = lVol = lCoe = -1; sSwr = -1; }
+
     if (status.fwd != lPwr) {
         lPwr = status.fwd;
-        lv_arc_set_value(ui_gPwr, (int)status.fwd);
-        snprintf(b, sizeof(b), "%.0fW", status.fwd); lv_label_set_text(ui_gPwrVal, b);
+        if (dbg) {
+            // Arc spans 0..1200 W; rescale to the ADC's 0..3.3 V full scale.
+            lv_arc_set_value(ui_gPwr, (int)(status.fwd * (1200.0f / 3.3f)));
+            snprintf(b, sizeof(b), "%.3fV", status.fwd);
+        } else {
+            lv_arc_set_value(ui_gPwr, (int)status.fwd);
+            snprintf(b, sizeof(b), "%.0fW", status.fwd);
+        }
+        lv_label_set_text(ui_gPwrVal, b);
     }
     if (status.swr != lSwr) {
         lSwr = status.swr;
-        lv_arc_set_value(ui_gSwr, (int)(status.swr * 10));
-        snprintf(b, sizeof(b), "%.2f", status.swr); lv_label_set_text(ui_gSwrVal, b);
+        lv_arc_set_value(ui_gSwr, dbg ? 10 : (int)(status.swr * 10));   // park at 1.00
+        if (dbg) { lv_label_set_text(ui_gSwrVal, "--"); }
+        else { snprintf(b, sizeof(b), "%.2f", status.swr); lv_label_set_text(ui_gSwrVal, b); }
     }
-    colorArc(ui_gSwr, &sSwr, status.swr, 0.8f * settings.max_swr, settings.max_swr);
+    colorArc(ui_gSwr, &sSwr, dbg ? 0.0f : status.swr, 0.8f * settings.max_swr, settings.max_swr);
     if (status.water_temp != lWat) {
         lWat = status.water_temp;
         lv_arc_set_value(ui_gWater, (int)status.water_temp);
@@ -328,15 +345,20 @@ void updateGauges(bool force) {
     colorArc(ui_gPlate, &sPlt, status.plate_temp, 0.9f * settings.max_plate_temp, settings.max_plate_temp);
     if (status.current != lCur) {
         lCur = status.current;
-        snprintf(b, sizeof(b), "%.1fA", status.current); lv_label_set_text(ui_gCur, b);
+        if (dbg) { snprintf(b, sizeof(b), "%.3fV", status.current); }
+        else     { snprintf(b, sizeof(b), "%.1fA", status.current); }
+        lv_label_set_text(ui_gCur, b);
     }
     if (status.voltage != lVol) {
         lVol = status.voltage;
-        snprintf(b, sizeof(b), "%.1fV", status.voltage); lv_label_set_text(ui_gVol, b);
+        if (dbg) { snprintf(b, sizeof(b), "%.3fV", status.voltage); }
+        else     { snprintf(b, sizeof(b), "%.1fV", status.voltage); }
+        lv_label_set_text(ui_gVol, b);
     }
     if (status.coeff != lCoe) {
         lCoe = status.coeff;
-        snprintf(b, sizeof(b), "%.0f%%", status.coeff); lv_label_set_text(ui_gCoeff, b);
+        if (dbg) { lv_label_set_text(ui_gCoeff, "--"); }
+        else { snprintf(b, sizeof(b), "%.0f%%", status.coeff); lv_label_set_text(ui_gCoeff, b); }
     }
 }
 
@@ -346,6 +368,10 @@ void updateGauges(bool force) {
 // ui_mainLeft isn't the active screen and are already current when swiped to.
 void pushSparklines(void) {
     if (!ui_spPwr) return;
+    // Don't feed the trends while debug mode is on: status.fwd is a detector voltage
+    // then, and a handful of ~2 "watt" samples would leave a fake dip sitting in the
+    // 100 s history long after the mode is switched back off. The charts simply hold.
+    if (status.debug) return;
     lv_chart_series_t* s;
     s = lv_chart_get_series_next(ui_spPwr,   NULL); if (s) lv_chart_set_next_value(ui_spPwr,   s, (int32_t)status.fwd);
     s = lv_chart_get_series_next(ui_spWater, NULL); if (s) lv_chart_set_next_value(ui_spWater, s, (int32_t)status.water_temp);

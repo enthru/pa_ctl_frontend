@@ -138,13 +138,16 @@ void handleRoot() {
     server.sendContent_P(R"rawliteral(
     <div class="container" id="statusOutGrid">
         <h1>Amplifier Status</h1>
+        <div id="debugBanner" class="debug-banner" style="display:none">DEBUG MODE &mdash; raw ADC input voltages, not calibrated readings</div>
         <div class="status-grid" id="statusGrid">
-            <div class="status-item"><label>Power:</label><span id="pwr">0W</span>
+            <div class="status-item"><label id="pwrLbl">Power:</label><span id="pwr">0W</span>
                 <div class="bar"><div id="pwrBar" class="bar-fill"></div></div></div>
             <div class="status-item"><label>SWR:</label><span id="swr">0</span></div>
-            <div class="status-item"><label>Reflected:</label><span id="ref">0W</span></div>
-            <div class="status-item"><label>Voltage:</label><span id="vol">0V</span></div>
-            <div class="status-item"><label>Current:</label><span id="cur">0A</span></div>
+            <div class="status-item"><label id="refLbl">Reflected:</label><span id="ref">0W</span></div>
+            <div class="status-item" id="trxfwdItem" style="display:none"><label>TRX drive (ADC ch2):</label><span id="trxfwd">0V</span></div>
+            <div class="status-item"><label id="volLbl">Voltage:</label><span id="vol">0V</span></div>
+            <div class="status-item"><label id="curLbl">Current:</label><span id="cur">0A</span></div>
+            <div class="status-item" id="rsrvItem" style="display:none"><label>Reserve (ADC ch5):</label><span id="rsrv">0V</span></div>
             <div class="status-item"><label>Water Temp:</label><span id="waterTmp">0C</span></div>
             <div class="status-item"><label>Plate Temp:</label><span id="plateTmp">0C</span></div>
             <div class="status-item"><label>State:</label>
@@ -172,16 +175,44 @@ void handleRoot() {
         function updateStatus() {
             fetch('/status').then(r => r.ok ? r.json() : null).then(data => {
                 if (!data) return;
+                // In debug mode the ADC-fed fields carry raw volts, so relabel them with the
+                // channel they come from and drop the derived SWR/efficiency readouts —
+                // showing "1.70 W" for what is really 1.70 V would be badly misleading on
+                // an amplifier this size.
+                const dbg = data.debug || false;
+                document.body.classList.toggle('debug-on', dbg);
+                document.getElementById('debugBanner').style.display = dbg ? 'block' : 'none';
+                document.getElementById('trxfwdItem').style.display  = dbg ? 'flex' : 'none';
+                document.getElementById('rsrvItem').style.display    = dbg ? 'flex' : 'none';
+                document.getElementById('pwrLbl').textContent = dbg ? 'FWD det (ADC ch0):' : 'Power:';
+                document.getElementById('refLbl').textContent = dbg ? 'REV det (ADC ch1):' : 'Reflected:';
+                document.getElementById('volLbl').textContent = dbg ? 'V sense (ADC ch3):' : 'Voltage:';
+                document.getElementById('curLbl').textContent = dbg ? 'I sense (ADC ch4):' : 'Current:';
+
                 const pv = data.fwd || 0;
-                document.getElementById('pwr').textContent  = pv + 'W';
-                document.getElementById('pwrBar').style.width = Math.min(pv / 12, 100) + '%';
-                document.getElementById('swr').textContent  = data.swr || 0;
-                document.getElementById('ref').textContent  = (data.ref || 0) + 'W';
-                document.getElementById('vol').textContent  = (data.voltage || 0).toFixed(1) + 'V';
-                document.getElementById('cur').textContent  = (data.current || 0).toFixed(1) + 'A';
+                if (dbg) {
+                    const v = x => (x || 0).toFixed(4) + 'V';
+                    document.getElementById('pwr').textContent    = v(data.fwd);
+                    document.getElementById('ref').textContent    = v(data.ref);
+                    document.getElementById('trxfwd').textContent = v(data.trxfwd);
+                    document.getElementById('vol').textContent    = v(data.voltage);
+                    document.getElementById('cur').textContent    = v(data.current);
+                    document.getElementById('rsrv').textContent   = v(data.rsrv);
+                    // 3.3 V full scale on the backend ADC
+                    document.getElementById('pwrBar').style.width = Math.min(pv / 0.033, 100) + '%';
+                    document.getElementById('swr').textContent    = '-';
+                    document.getElementById('coeff').textContent  = '-';
+                } else {
+                    document.getElementById('pwr').textContent  = pv.toFixed(2) + 'W';
+                    document.getElementById('pwrBar').style.width = Math.min(pv / 12, 100) + '%';
+                    document.getElementById('ref').textContent  = (data.ref || 0).toFixed(2) + 'W';
+                    document.getElementById('vol').textContent  = (data.voltage || 0).toFixed(1) + 'V';
+                    document.getElementById('cur').textContent  = (data.current || 0).toFixed(1) + 'A';
+                    document.getElementById('swr').textContent  = (data.swr || 0).toFixed(2);
+                    document.getElementById('coeff').textContent = (data.coeff || 0).toFixed(1) + '%';
+                }
                 document.getElementById('waterTmp').textContent = (data.water_temp || 0).toFixed(1) + 'C';
                 document.getElementById('plateTmp').textContent = (data.plate_temp || 0).toFixed(1) + 'C';
-                document.getElementById('coeff').textContent    = (data.coeff || 0).toFixed(1) + '%';
                 document.getElementById('band').textContent     = data.band || '-';
                 document.getElementById('ptt').textContent      = data.ptt ? 'ON' : 'OFF';
                 document.getElementById('pwm_pump').textContent   = (data.pwm_pump   || 0) + '%';
@@ -214,16 +245,23 @@ void handleStatus() {
         server.send(503, "application/json", "{\"error\":\"Busy\"}");
         return;
     }
-    char r[384];
+    // The six ADC-fed fields go out with 4 decimals unconditionally: in debug mode they
+    // carry raw volts, where one backend ADC LSB is ~0.8 mV and %.2f would round real
+    // bits away. The page formats them for display (2 dp for watts, 1 dp for V/A), so
+    // the normal-mode readout is unchanged.
+    char r[448];
     snprintf(r, sizeof(r),
-        "{\"fwd\":%.2f,\"ref\":%.2f,\"swr\":%.2f,\"voltage\":%.1f,\"current\":%.1f,"
+        "{\"fwd\":%.4f,\"ref\":%.4f,\"trxfwd\":%.4f,\"swr\":%.2f,"
+        "\"voltage\":%.4f,\"current\":%.4f,\"rsrv\":%.4f,"
         "\"water_temp\":%.1f,\"plate_temp\":%.1f,\"coeff\":%.1f,"
         "\"ptt\":%s,\"state\":%s,\"alarm\":%s,\"pwm_pump\":%d,\"pwm_cooler\":%d,"
-        "\"alert_reason\":\"%s\",\"band\":\"%s\"}",
-        status.fwd, status.ref, status.swr, status.voltage, status.current,
+        "\"debug\":%s,\"alert_reason\":\"%s\",\"band\":\"%s\"}",
+        status.fwd, status.ref, status.trxfwd, status.swr,
+        status.voltage, status.current, status.rsrv,
         status.water_temp, status.plate_temp, status.coeff,
         status.ptt ? "true" : "false", status.state ? "true" : "false",
         status.alarm ? "true" : "false", status.pwm_pump, status.pwm_cooler,
+        status.debug ? "true" : "false",
         status.alert_reason, status.band);
     server.send(200, "application/json", r);
 }
@@ -308,6 +346,26 @@ void handleSetState() {
     server.send(200, "text/plain", "OK");
 }
 
+// ─── /setdebug ────────────────────────────────────────────────────────────────
+
+void handleSetDebug() {
+    if (!server.hasArg("debug")) { server.send(400, "text/plain", "Missing debug parameter"); return; }
+    // Gated on backendBusy() only, deliberately NOT on isTransmitting(). Debug is a live
+    // state flag, not a stored setting: the backend keeps every protection check running
+    // on the real computed values and only changes what it *reports*, so there is no
+    // FLASH write and nothing to refuse while keyed. Watching the detector voltages under
+    // TX is precisely what the mode exists for.
+    if (backendBusy()) { server.send(409, "text/plain", "Backend busy"); return; }
+    status.debug = (server.arg("debug") == "true");
+    LOG_INFO("Debug mode set to %s via web", status.debug ? "ON" : "OFF");
+    // sendDebugState(), not sendStateData(): pushes the single flag without re-asserting
+    // enabled/ptt/band, so ticking it mid-transmission cannot unkey the amplifier. If the
+    // backend misses it entirely, the next status frame overwrites status.debug with the
+    // backend's real value, so the checkbox cannot keep claiming a mode that is not on.
+    sendDebugState();
+    server.send(200, "text/plain", "OK");
+}
+
 // ─── /settings ────────────────────────────────────────────────────────────────
 
 void handleSettingsPage() {
@@ -362,6 +420,13 @@ void handleSettingsPage() {
                         <label for="autoband" class="toggle-label"></label>
                     </div>
                 </div>
+                <div class="settings-item"><label>Debug (raw ADC voltages):</label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="debug" class="toggle-input">
+                        <label for="debug" class="toggle-label"></label>
+                    </div>
+                    <small id="debugMsg">Applies immediately. Status page then shows raw ADC input voltages instead of power/current/voltage. Protections keep running on the real values.</small>
+                </div>
             </div>
             <div class="navigation">
                 <button type="button" onclick="location.href='/'">Back to Status</button>
@@ -392,6 +457,7 @@ void handleSettingsPage() {
                 });
                 document.getElementById('protection_enabled').checked = data.protection_enabled;
                 document.getElementById('autoband').checked = data.autoband;
+                document.getElementById('debug').checked = data.debug;
                 const sel = document.getElementById('default_band');
                 for (let i = 0; i < sel.options.length; i++) {
                     if (sel.options[i].value === data.default_band) { sel.selectedIndex = i; break; }
@@ -412,6 +478,26 @@ void handleSettingsPage() {
                 }
             });
         }
+        // Debug is not part of the settings form — it is pushed the moment it is ticked
+        // (see the no-name checkbox above). On failure the tick is reverted so the box
+        // never claims a mode the backend is not actually in.
+        document.getElementById('debug').addEventListener('change', function() {
+            const box = this;
+            const msg = document.getElementById('debugMsg');
+            fetch('/setdebug', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+                body:'debug=' + box.checked })
+            .then(r => {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                msg.style.color = '#28a745';
+                msg.textContent = box.checked ? 'Debug ON - status page shows raw ADC voltages.'
+                                              : 'Debug OFF - normal readings.';
+            })
+            .catch(() => {
+                box.checked = !box.checked;
+                msg.style.color = '#dc3545';
+                msg.textContent = 'Backend busy, try again.';
+            });
+        });
         document.addEventListener('DOMContentLoaded', () => loadSettings(1));
         document.getElementById('settingsForm').addEventListener('submit', () => {
             document.getElementById('message').style.color = '#28a745';
@@ -439,7 +525,8 @@ void handleGetSettings() {
         "\"max_pump_speed_temp\":%d,\"min_pump_speed_temp\":%d,"
         "\"max_fan_speed_temp\":%d,\"min_fan_speed_temp\":%d,"
         "\"min_coeff\":%d,\"max_input_power\":%d,"
-        "\"protection_enabled\":%s,\"autoband\":%s,\"default_band\":\"%s\"}",
+        "\"protection_enabled\":%s,\"autoband\":%s,\"default_band\":\"%s\","
+        "\"debug\":%s}",
         settings.max_swr, settings.max_current, settings.max_voltage,
         settings.max_plate_temp, settings.max_water_temp,
         settings.max_pump_speed_temp, settings.min_pump_speed_temp,
@@ -447,7 +534,8 @@ void handleGetSettings() {
         settings.min_coeff, settings.max_input_power,
         status.protection_enabled ? "true" : "false",
         settings.autoband ? "true" : "false",
-        settings.default_band);
+        settings.default_band,
+        status.debug ? "true" : "false");
     server.send(200, "application/json", r);
 }
 
@@ -659,6 +747,8 @@ h1 { text-align: center; color: #333; margin-bottom: 20px; }
 body.ptt-on { background-color: #ffdddd; }
 body.ptt-on .container { border: 2px solid #ff0000; }
 .status-grid.ptt-on { background: #ffdddd; border: 2px solid #ff0000; border-radius: 10px; padding: 10px; }
+.debug-banner { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 8px; padding: 10px 15px; margin: 10px 0; font-weight: bold; text-align: center; }
+body.debug-on .status-item span { font-family: monospace; }
 .container.ptt-on { background: #ffdddd; border: 2px solid #ff0000; }
 @media (max-width: 768px) {
     .status-grid, .settings-grid { grid-template-columns: 1fr; }
@@ -686,6 +776,7 @@ void registerWebRoutes() {
     server.on("/savesettings",   HTTP_POST, handleSaveSettings);
     server.on("/setband",        HTTP_POST, handleSetBand);
     server.on("/setstate",       HTTP_POST, handleSetState);
+    server.on("/setdebug",       HTTP_POST, handleSetDebug);
     server.on("/style.css",      HTTP_GET,  handleCSS);
     server.on("/calibration",    HTTP_GET,  handleCalibrationPage);
     server.on("/getcalibration", HTTP_GET,  handleGetCalibration);

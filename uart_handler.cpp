@@ -78,7 +78,10 @@ static bool parseAckResponse(const char* json, ResponseType expectedResponse) {
     }
     if (strstr(json, "\"response\":\"state updated\"") != NULL) {
         LOG_TRACE("ACK: state updated");
-        return expectedResponse == RESPONSE_STATE_SEND;
+        // The backend answers any {"state":{...}} packet with this one string, so it
+        // acknowledges the debug-only send as well as a full state send.
+        return expectedResponse == RESPONSE_STATE_SEND ||
+               expectedResponse == RESPONSE_DEBUG_SEND;
     }
     if (strstr(json, "\"response\":\"calibration updated\"") != NULL) {
         LOG_TRACE("ACK: calibration updated");
@@ -153,13 +156,16 @@ void sendStateData(bool trackResponse) {
 
     memcpy(&pendingState, &state, sizeof(StateData));
 
-    char json[256];
+    // 320, not 256: the frame is ~190 chars with "debug" added and these are unbounded
+    // strcat()s, so keep clear headroom over the longest possible band/flag combination.
+    char json[320];
     char temp[10];
 
     strcpy(json, "{\"state\":{");
     strcat(json, "\"alarm\":"); strcat(json, state.alarm  ? "true" : "false"); strcat(json, ",");
     strcat(json, "\"enabled\":"); strcat(json, state.state ? "true" : "false"); strcat(json, ",");
     strcat(json, "\"protection_enabled\":"); strcat(json, status.protection_enabled ? "true" : "false"); strcat(json, ",");
+    strcat(json, "\"debug\":"); strcat(json, status.debug ? "true" : "false"); strcat(json, ",");
     strcat(json, "\"ptt\":"); strcat(json, state.ptt ? "true" : "false"); strcat(json, ",");
     strcat(json, "\"pwm_pump\":"); itoa(state.pwm_pump,   temp, 10); strcat(json, temp); strcat(json, ",");
     strcat(json, "\"pwm_cooler\":"); itoa(state.pwm_cooler, temp, 10); strcat(json, temp); strcat(json, ",");
@@ -174,6 +180,23 @@ void sendStateData(bool trackResponse) {
         waitingForResponse  = RESPONSE_STATE_SEND;
         responseRequestTime = millis();
     }
+}
+
+// Debug is the one state flag that must be settable while transmitting: it changes what
+// the backend *reports*, not what it does, and the detector voltages are only worth
+// looking at under drive. sendStateData() cannot be used for that — it re-asserts
+// "enabled" and "ptt" from state.state/state.ptt, which are set by user actions and are
+// not synced back from telemetry, so a stale copy (e.g. after an ESP reset while the amp
+// stayed keyed) would unkey or disable a transmitting amplifier as a side effect of
+// ticking a diagnostic box. This sends the single key instead; the backend's
+// process_state() parses keys independently and leaves everything else untouched.
+void sendDebugState() {
+    LOG_INFO("Sending debug flag: %s", status.debug ? "ON" : "OFF");
+    char json[48];
+    snprintf(json, sizeof(json), "{\"state\":{\"debug\":%s}}", status.debug ? "true" : "false");
+    Serial1.println(json);
+    waitingForResponse  = RESPONSE_DEBUG_SEND;
+    responseRequestTime = millis();
 }
 
 void sendCalibrationCommand() {
@@ -328,24 +351,44 @@ static void processParsedData() {
                     cFan[LABEL_CACHE], cBand[LABEL_CACHE], cIPwr[LABEL_CACHE],
                     cHeat[LABEL_CACHE], cTxrx[LABEL_CACHE];
 
-        snprintf(buf, sizeof(buf), "%.2fW", status.fwd);        labelSetCached(ui_pwrTxt, cPwr, buf);
-        lv_bar_set_value(ui_pwrBar, int(status.fwd), LV_ANIM_ON);
+        // Debug mode: fwd/ref/trxfwd/voltage/current carry RAW ADC volts, not watts,
+        // volts and amps. Every readout below is retagged "V" and the derived SWR /
+        // efficiency figures are blanked. Showing "1.70W" for what is really 1.70 V on a
+        // kW amplifier would be worse than showing nothing. The checkbox that turns the
+        // mode on lives in the web UI, so the operator at the panel may not know it is
+        // active — the display has to say so on its own.
+        const bool dbg = status.debug;
+
+        if (dbg) {
+            snprintf(buf, sizeof(buf), "%.4fV", status.fwd);    labelSetCached(ui_pwrTxt, cPwr, buf);
+            // Bar spans 0..1200 W normally; rescale to the ADC's 0..3.3 V full scale.
+            lv_bar_set_value(ui_pwrBar, int(status.fwd * (1200.0f / 3.3f)), LV_ANIM_ON);
+        } else {
+            snprintf(buf, sizeof(buf), "%.2fW", status.fwd);    labelSetCached(ui_pwrTxt, cPwr, buf);
+            lv_bar_set_value(ui_pwrBar, int(status.fwd), LV_ANIM_ON);
+        }
 
         // Peak-hold: remember the highest forward power seen in the last
         // PEAK_HOLD_MS, then let it decay back to the live reading. The marker is
         // a thin line positioned along the bar's on-screen x span (bar: left edge
         // x=-233, width 354, range 0..1200 -> right edge x=121).
         static float peakW = 0; static unsigned long peakAt = 0;
-        if (status.fwd >= peakW || nowMs - peakAt > PEAK_HOLD_MS) { peakW = status.fwd; peakAt = nowMs; }
+        if (dbg) { peakW = 0; peakAt = nowMs; }   // no meaningful peak power in debug
+        else if (status.fwd >= peakW || nowMs - peakAt > PEAK_HOLD_MS) { peakW = status.fwd; peakAt = nowMs; }
         int peakX = -233 + (int)(peakW * (354.0f / 1200.0f));
         if (peakX > 121) peakX = 121;
         static int prevPeakX = -1000;
         if (peakX != prevPeakX) { prevPeakX = peakX; lv_obj_set_x(ui_pwrPeak, peakX); }
 
         // Dissipated power (heat) ~= DC input (V*I) minus RF output. Clamp at 0.
-        float heatW = status.voltage * status.current - status.fwd;
-        if (heatW < 0) heatW = 0;
-        snprintf(buf, sizeof(buf), "HEAT:%.0fW", heatW);        labelSetCached(ui_heatTxt, cHeat, buf);
+        if (dbg) {
+            // V*I - fwd is meaningless when all three are raw detector volts.
+            labelSetCached(ui_heatTxt, cHeat, "HEAT:--");
+        } else {
+            float heatW = status.voltage * status.current - status.fwd;
+            if (heatW < 0) heatW = 0;
+            snprintf(buf, sizeof(buf), "HEAT:%.0fW", heatW);    labelSetCached(ui_heatTxt, cHeat, buf);
+        }
 
         // PTT rarely changes but status frames arrive several times a second.
         // lv_obj_set_style_bg_color invalidates + repaints unconditionally, so
@@ -376,25 +419,40 @@ static void processParsedData() {
                 LV_PART_MAIN | LV_STATE_DEFAULT);
         }
 
-        snprintf(buf, sizeof(buf), "%.2f",  status.swr);        labelSetCached(ui_swrValue, cSwr,  buf);
-        snprintf(buf, sizeof(buf), "%.2fW", status.ref);        labelSetCached(ui_refTxt,   cRef,  buf);
-        snprintf(buf, sizeof(buf), "%.1fV", status.voltage);    labelSetCached(ui_volTxt,   cVol,  buf);
-        snprintf(buf, sizeof(buf), "%.1fA", status.current);    labelSetCached(ui_current,  cCur,  buf);
+        if (dbg) {
+            labelSetCached(ui_swrValue, cSwr, "--");            // derived, no raw input
+            labelSetCached(ui_coeff,    cCoeff, "--");
+            snprintf(buf, sizeof(buf), "%.4fV", status.ref);     labelSetCached(ui_refTxt,  cRef, buf);
+            snprintf(buf, sizeof(buf), "%.4fV", status.voltage); labelSetCached(ui_volTxt,  cVol, buf);
+            snprintf(buf, sizeof(buf), "%.4fV", status.current); labelSetCached(ui_current, cCur, buf);
+        } else {
+            snprintf(buf, sizeof(buf), "%.2f",  status.swr);    labelSetCached(ui_swrValue, cSwr,  buf);
+            snprintf(buf, sizeof(buf), "%.2fW", status.ref);    labelSetCached(ui_refTxt,   cRef,  buf);
+            snprintf(buf, sizeof(buf), "%.1fV", status.voltage);labelSetCached(ui_volTxt,   cVol,  buf);
+            snprintf(buf, sizeof(buf), "%.1fA", status.current);labelSetCached(ui_current,  cCur,  buf);
+            snprintf(buf, sizeof(buf), "%.1f%%",status.coeff);  labelSetCached(ui_coeff,    cCoeff,buf);
+        }
+        // Temperatures come from the DS18B20s, not the ADC — unaffected by debug mode.
         snprintf(buf, sizeof(buf), "%.1fC", status.water_temp); labelSetCached(ui_waterTmp, cWater,buf);
         snprintf(buf, sizeof(buf), "%.1fC", status.plate_temp); labelSetCached(ui_plateTmp, cPlate,buf);
-        snprintf(buf, sizeof(buf), "%.1f%%",status.coeff);      labelSetCached(ui_coeff,    cCoeff,buf);
 
         // Threshold colouring: warn as a reading nears its protection limit, red
         // once it crosses. Gated internally so styles are only touched on change.
         static int8_t thState[7] = {-1,-1,-1,-1,-1,-1,-1};
         static lv_color_t thDef[7]; static bool thHave[7] = {0};
-        colorThresh(ui_swrValue, &thState[0], &thDef[0], &thHave[0], status.swr,        0.8f*settings.max_swr,        settings.max_swr,        false);
-        colorThresh(ui_current,  &thState[1], &thDef[1], &thHave[1], status.current,    0.9f*settings.max_current,    settings.max_current,    false);
+        // Only the two temperatures keep their threshold colouring in debug mode. The rest
+        // would be comparing raw volts against amp/volt/percent limits, painting a healthy
+        // reading red (or a bad one green) — worse than no colour at all. Passing a value
+        // safely below the warn point parks those five at their default colour.
+        colorThresh(ui_swrValue, &thState[0], &thDef[0], &thHave[0], dbg ? 0.0f : status.swr,     0.8f*settings.max_swr,        settings.max_swr,        false);
+        colorThresh(ui_current,  &thState[1], &thDef[1], &thHave[1], dbg ? 0.0f : status.current, 0.9f*settings.max_current,    settings.max_current,    false);
         colorThresh(ui_waterTmp, &thState[2], &thDef[2], &thHave[2], status.water_temp, 0.9f*settings.max_water_temp, settings.max_water_temp, false);
         colorThresh(ui_plateTmp, &thState[3], &thDef[3], &thHave[3], status.plate_temp, 0.9f*settings.max_plate_temp, settings.max_plate_temp, false);
-        colorThresh(ui_volTxt,   &thState[4], &thDef[4], &thHave[4], status.voltage,    0.95f*settings.max_voltage,   settings.max_voltage,    false);
-        colorThresh(ui_iPWRTxt,  &thState[5], &thDef[5], &thHave[5], status.trxfwd,     0.9f*settings.max_input_power,settings.max_input_power,false);
-        colorThresh(ui_coeff,    &thState[6], &thDef[6], &thHave[6], status.coeff,      1.15f*settings.min_coeff,     settings.min_coeff,      true);
+        colorThresh(ui_volTxt,   &thState[4], &thDef[4], &thHave[4], dbg ? 0.0f : status.voltage, 0.95f*settings.max_voltage,   settings.max_voltage,    false);
+        colorThresh(ui_iPWRTxt,  &thState[5], &thDef[5], &thHave[5], dbg ? 0.0f : status.trxfwd,  0.9f*settings.max_input_power,settings.max_input_power,false);
+        // min_coeff is a *floor* (inverted=true), so a parked 0 would read as a violation.
+        // Feed it a value comfortably above the limit instead.
+        colorThresh(ui_coeff,    &thState[6], &thDef[6], &thHave[6], dbg ? 100.0f : status.coeff, 1.15f*settings.min_coeff,     settings.min_coeff,      true);
         snprintf(buf, sizeof(buf), "%d%%",  status.pwm_pump);   labelSetCached(ui_pumpSTxt, cPump, buf);
         snprintf(buf, sizeof(buf), "%d%%",  status.pwm_cooler); labelSetCached(ui_fanSTxt,  cFan,  buf);
         // Amp-enable switch flips rarely; set_switch_state add/clear_state is
@@ -410,7 +468,9 @@ static void processParsedData() {
             strncpy(state.band, status.band, sizeof(state.band) - 1);
             state.band[sizeof(state.band) - 1] = '\0';
         }
-        snprintf(buf, sizeof(buf), "%.2fW", status.trxfwd);     labelSetCached(ui_iPWRTxt,  cIPwr, buf);
+        if (dbg) { snprintf(buf, sizeof(buf), "%.4fV", status.trxfwd); }
+        else     { snprintf(buf, sizeof(buf), "%.2fW", status.trxfwd); }
+        labelSetCached(ui_iPWRTxt,  cIPwr, buf);
     }
     // Graphical dashboard: keep the arc gauges live while ui_mainLeft is shown.
     else if (lv_scr_act() == ui_mainLeft) {
@@ -506,6 +566,7 @@ void handleResponseRetry() {
                 case RESPONSE_SETTINGS_REQUEST:   sendSettingsCommand();   ResponseTypeString = "settings request";   break;
                 case RESPONSE_SETTINGS_SEND:      sendSettingsData();      ResponseTypeString = "settings send";      break;
                 case RESPONSE_STATE_SEND:         sendStateData();         ResponseTypeString = "state send";         break;
+                case RESPONSE_DEBUG_SEND:         sendDebugState();        ResponseTypeString = "debug send";         break;
                 case RESPONSE_CALIBRATION_REQUEST:sendCalibrationCommand();ResponseTypeString = "calibration request";break;
                 case RESPONSE_CALIBRATION_SEND:   sendCalibrationData();   ResponseTypeString = "calibration send";   break;
                 default:

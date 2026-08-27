@@ -8,6 +8,9 @@ void sendSettingsData();
 // trackResponse=false sends without arming the ack/retry state machine
 // (used when another tracked send follows immediately in the same operation).
 void sendStateData(bool trackResponse = true);
+// Pushes ONLY the debug flag. Unlike sendStateData() this touches no other key, so it
+// is safe to send while keyed — see the comment on the definition.
+void sendDebugState();
 void sendCalibrationCommand();
 void sendCalibrationData();
 

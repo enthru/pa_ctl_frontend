@@ -92,6 +92,7 @@ static void statusPair(const char* k, const char* v) {
     else if (!strcmp(k, "water_temp"))         status.water_temp = atof(v);
     else if (!strcmp(k, "plate_temp"))         status.plate_temp = atof(v);
     else if (!strcmp(k, "coeff"))              status.coeff      = atof(v);
+    else if (!strcmp(k, "rsrv"))               status.rsrv       = atof(v);
     else if (!strcmp(k, "alarm"))              status.alarm      = !strcmp(v, "true");
     else if (!strcmp(k, "state"))              status.state      = !strcmp(v, "true");
     else if (!strcmp(k, "ptt"))                status.ptt        = !strcmp(v, "true");
@@ -100,6 +101,7 @@ static void statusPair(const char* k, const char* v) {
     else if (!strcmp(k, "auto_pwm_pump"))      status.auto_pwm_pump      = !strcmp(v, "true");
     else if (!strcmp(k, "auto_pwm_fan"))       status.auto_pwm_fan       = !strcmp(v, "true");
     else if (!strcmp(k, "protection_enabled")) status.protection_enabled = !strcmp(v, "true");
+    else if (!strcmp(k, "debug"))              status.debug              = !strcmp(v, "true");
     else if (!strcmp(k, "alert_reason")) {
         strncpy(status.alert_reason, v, sizeof(status.alert_reason) - 1);
         status.alert_reason[sizeof(status.alert_reason) - 1] = '\0';
