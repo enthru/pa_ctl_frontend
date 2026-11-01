@@ -410,12 +410,12 @@ static void processParsedData() {
                 LV_PART_MAIN | LV_STATE_DEFAULT);
         }
 
-        // Status-strip protection state: TRIP (alarm), PROT (armed), OFF (disabled).
+        // Status-strip protection state: ALARM (tripped), PROT: ON (armed), PROT: OFF (disabled).
         static int prevProt = -1;
         int protS = status.alarm ? 2 : (status.protection_enabled ? 1 : 0);
         if (protS != prevProt) {
             prevProt = protS;
-            lv_label_set_text(ui_protTxt, protS == 2 ? "TRIP" : protS == 1 ? "PROT" : "OFF");
+            lv_label_set_text(ui_protTxt, protS == 2 ? "ALARM" : protS == 1 ? "PROT: ON" : "PROT: OFF");
             lv_obj_set_style_text_color(ui_protTxt,
                 protS == 2 ? lv_color_hex(0xE00000) : protS == 1 ? lv_color_hex(0x00A000) : lv_color_hex(0x808080),
                 LV_PART_MAIN | LV_STATE_DEFAULT);

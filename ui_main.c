@@ -378,10 +378,10 @@ lv_obj_set_style_text_font(ui_txrxTxt, &lv_font_montserrat_16, LV_PART_MAIN| LV_
 ui_protTxt = lv_label_create(ui_main);
 lv_obj_set_width( ui_protTxt, LV_SIZE_CONTENT);
 lv_obj_set_height( ui_protTxt, LV_SIZE_CONTENT);
-lv_obj_set_x( ui_protTxt, 180 );
+lv_obj_set_x( ui_protTxt, 170 );
 lv_obj_set_y( ui_protTxt, -119 );
 lv_obj_set_align( ui_protTxt, LV_ALIGN_CENTER );
-lv_label_set_text(ui_protTxt,"PROT");
+lv_label_set_text(ui_protTxt,"PROT: OFF");
 lv_obj_set_style_text_font(ui_protTxt, &lv_font_montserrat_16, LV_PART_MAIN| LV_STATE_DEFAULT);
 
 lv_obj_add_event_cb(ui_mainSwitch, ui_event_mainSwitch, LV_EVENT_ALL, NULL);
