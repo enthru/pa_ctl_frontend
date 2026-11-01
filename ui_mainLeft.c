@@ -5,20 +5,28 @@
 //
 // ui_mainLeft is a graphical "gauge dashboard": a second view of the same live
 // telemetry shown numerically on ui_main (swipe left to reach it, swipe left
-// again to return). Three columns (power / water temp / plate temp) each pair an
-// arc gauge with a rolling sparkline; a bottom row carries the SWR gauge and the
-// current/voltage/efficiency readouts. Gauge values are pushed from the UART
-// path (updateGauges); the sparklines are fed once per second (pushSparklines).
+// again to return). Three cards (power / water temp / plate temp) each pair an
+// arc gauge with a ~100 s trend chart; a bottom strip carries the SWR, current,
+// voltage and efficiency readouts, each under its own caption. Card styling
+// matches ui_mainRight. Gauge values are pushed from the UART path
+// (updateGauges); the trend charts are fed once per second (pushSparklines).
 
 #include "ui.h"
 
 #define SPARK_POINTS 100
 
+#define GAUGE_CARD_BG  0xF2F4F7
+#define GAUGE_ACCENT   0x007AFF
+#define GAUGE_KEY      0x707070
+#define GAUGE_VALUE    0x202020
+#define GAUGE_DIVIDER  0xDDE1E6
+#define GAUGE_OK       0x00A000
+
 lv_obj_t *ui_mainLeft = NULL;
-lv_obj_t *ui_gPwr = NULL;   lv_obj_t *ui_gPwrVal = NULL;   lv_obj_t *ui_spPwr = NULL;
-lv_obj_t *ui_gSwr = NULL;   lv_obj_t *ui_gSwrVal = NULL;
+lv_obj_t *ui_gPwr = NULL;   lv_obj_t *ui_gPwrVal = NULL;   lv_obj_t *ui_gPwrUnit = NULL; lv_obj_t *ui_spPwr = NULL;
 lv_obj_t *ui_gWater = NULL; lv_obj_t *ui_gWaterVal = NULL; lv_obj_t *ui_spWater = NULL;
 lv_obj_t *ui_gPlate = NULL; lv_obj_t *ui_gPlateVal = NULL; lv_obj_t *ui_spPlate = NULL;
+lv_obj_t *ui_gSwrVal = NULL;
 lv_obj_t *ui_gCur = NULL;
 lv_obj_t *ui_gVol = NULL;
 lv_obj_t *ui_gCoeff = NULL;
@@ -38,57 +46,84 @@ if ( event_code == LV_EVENT_SCREEN_LOADED) {
 
 // build funtions
 
-// Read-only arc gauge: a 270-degree arc with the knob hidden and touch disabled
-// (so it can't be dragged and can't swallow the swipe-back gesture).
-static lv_obj_t* mainLeft_gauge(lv_obj_t* parent, int x, int y, int rmin, int rmax, lv_color_t ind) {
-    lv_obj_t* a = lv_arc_create(parent);
-    lv_obj_set_size( a, 72, 72);
-    lv_obj_set_align( a, LV_ALIGN_CENTER );
-    lv_obj_set_x( a, x );
-    lv_obj_set_y( a, y );
-    lv_arc_set_rotation( a, 135 );
-    lv_arc_set_bg_angles( a, 0, 270 );
-    lv_arc_set_range( a, rmin, rmax );
-    lv_arc_set_value( a, rmin );
-    lv_obj_remove_flag( a, LV_OBJ_FLAG_CLICKABLE );
-    lv_obj_remove_flag( a, LV_OBJ_FLAG_SCROLLABLE );
-    lv_obj_set_style_arc_width( a, 8, LV_PART_MAIN );
-    lv_obj_set_style_arc_width( a, 8, LV_PART_INDICATOR );
-    lv_obj_set_style_arc_color( a, lv_color_hex(0xD0D0D0), LV_PART_MAIN );
-    lv_obj_set_style_arc_color( a, ind, LV_PART_INDICATOR );
-    lv_obj_set_style_bg_opa( a, LV_OPA_TRANSP, LV_PART_KNOB );
-    return a;
+// Rounded flat panel. Not scrollable; swipes bubble up to the screen so the
+// swipe-back gesture still works when it starts on a card.
+static lv_obj_t* mainLeft_card(lv_obj_t* parent, int x, int y, int w, int h) {
+    lv_obj_t* c = lv_obj_create(parent);
+    lv_obj_set_pos( c, x, y );
+    lv_obj_set_size( c, w, h );
+    lv_obj_remove_flag( c, LV_OBJ_FLAG_SCROLLABLE );
+    lv_obj_add_flag( c, LV_OBJ_FLAG_GESTURE_BUBBLE );
+    lv_obj_set_style_bg_color( c, lv_color_hex(GAUGE_CARD_BG), LV_PART_MAIN );
+    lv_obj_set_style_border_width( c, 0, LV_PART_MAIN );
+    lv_obj_set_style_radius( c, 10, LV_PART_MAIN );
+    lv_obj_set_style_shadow_width( c, 0, LV_PART_MAIN );
+    lv_obj_set_style_pad_hor( c, 12, LV_PART_MAIN );
+    lv_obj_set_style_pad_ver( c, 10, LV_PART_MAIN );
+    return c;
 }
 
-static lv_obj_t* mainLeft_label(lv_obj_t* parent, int x, int y, const lv_font_t* font, const char* txt) {
+static lv_obj_t* mainLeft_text(lv_obj_t* parent, lv_align_t align, int x, int y,
+                               const lv_font_t* font, uint32_t color, const char* txt) {
     lv_obj_t* l = lv_label_create(parent);
-    lv_obj_set_width( l, LV_SIZE_CONTENT);
-    lv_obj_set_height( l, LV_SIZE_CONTENT);
-    lv_obj_set_align( l, LV_ALIGN_CENTER );
-    lv_obj_set_x( l, x );
-    lv_obj_set_y( l, y );
+    lv_obj_set_align( l, align );
+    lv_obj_set_pos( l, x, y );
     lv_obj_set_style_text_font( l, font, LV_PART_MAIN | LV_STATE_DEFAULT );
+    lv_obj_set_style_text_color( l, lv_color_hex(color), LV_PART_MAIN | LV_STATE_DEFAULT );
     lv_label_set_text( l, txt );
     return l;
 }
 
-// Minimal sparkline: a 100-point line chart, no grid / border / point markers,
-// non-interactive. Primed empty so it starts blank rather than a flat 0 line.
-static lv_obj_t* mainLeft_spark(lv_obj_t* parent, int x, int y, int rmin, int rmax, lv_color_t line) {
-    lv_obj_t* c = lv_chart_create(parent);
-    lv_obj_set_size( c, 120, 28 );
-    lv_obj_set_align( c, LV_ALIGN_CENTER );
-    lv_obj_set_x( c, x );
-    lv_obj_set_y( c, y );
+// Read-only arc gauge: a 270-degree arc open at the bottom, knob hidden and touch
+// disabled (so it can't be dragged and can't swallow the swipe-back gesture).
+// The value label sits in the middle and the unit in the bottom opening; both are
+// children of the arc so they stay centred whatever the text width.
+static lv_obj_t* mainLeft_gauge(lv_obj_t* card, int rmax, lv_color_t ind,
+                                lv_obj_t** val, lv_obj_t** unit, const char* unitTxt) {
+    lv_obj_t* a = lv_arc_create(card);
+    lv_obj_set_size( a, 96, 96 );
+    lv_obj_set_align( a, LV_ALIGN_TOP_MID );
+    lv_obj_set_y( a, 20 );
+    lv_arc_set_rotation( a, 135 );
+    lv_arc_set_bg_angles( a, 0, 270 );
+    lv_arc_set_range( a, 0, rmax );
+    lv_arc_set_value( a, 0 );
+    lv_obj_remove_flag( a, LV_OBJ_FLAG_CLICKABLE );
+    lv_obj_remove_flag( a, LV_OBJ_FLAG_SCROLLABLE );
+    lv_obj_set_style_pad_all( a, 0, LV_PART_MAIN );
+    lv_obj_set_style_arc_width( a, 10, LV_PART_MAIN );
+    lv_obj_set_style_arc_width( a, 10, LV_PART_INDICATOR );
+    lv_obj_set_style_arc_color( a, lv_color_hex(GAUGE_DIVIDER), LV_PART_MAIN );
+    lv_obj_set_style_arc_color( a, ind, LV_PART_INDICATOR );
+    lv_obj_set_style_bg_opa( a, LV_OPA_TRANSP, LV_PART_KNOB );
+    *val = mainLeft_text(a, LV_ALIGN_CENTER, 0, -2, &lv_font_montserrat_22, GAUGE_VALUE, "--");
+    lv_obj_t* u = mainLeft_text(a, LV_ALIGN_BOTTOM_MID, 0, -2, &lv_font_montserrat_14, GAUGE_KEY, unitTxt);
+    if (unit) *unit = u;
+    return a;
+}
+
+// Trend chart under each gauge: ~100 s of samples on a white panel with faint
+// top/middle/bottom guides, no point markers, non-interactive. Padding is set
+// explicitly — the default theme's chart padding would leave a sliver of plot.
+// Primed empty so it starts blank rather than a flat 0 line.
+static lv_obj_t* mainLeft_spark(lv_obj_t* card, int rmax, lv_color_t line) {
+    lv_obj_t* c = lv_chart_create(card);
+    lv_obj_set_size( c, lv_pct(100), 44 );
+    lv_obj_set_align( c, LV_ALIGN_BOTTOM_MID );
     lv_obj_remove_flag( c, LV_OBJ_FLAG_SCROLLABLE );
     lv_obj_remove_flag( c, LV_OBJ_FLAG_CLICKABLE );
     lv_chart_set_type( c, LV_CHART_TYPE_LINE );
     lv_chart_set_point_count( c, SPARK_POINTS );
     lv_chart_set_update_mode( c, LV_CHART_UPDATE_MODE_SHIFT );
-    lv_chart_set_range( c, LV_CHART_AXIS_PRIMARY_Y, rmin, rmax );
-    lv_chart_set_div_line_count( c, 0, 0 );
+    lv_chart_set_range( c, LV_CHART_AXIS_PRIMARY_Y, 0, rmax );
+    lv_chart_set_div_line_count( c, 3, 0 );
+    lv_obj_set_style_line_color( c, lv_color_hex(GAUGE_DIVIDER), LV_PART_MAIN );
+    lv_obj_set_style_line_width( c, 1, LV_PART_MAIN );
+    lv_obj_set_style_bg_color( c, lv_color_hex(0xFFFFFF), LV_PART_MAIN );
+    lv_obj_set_style_bg_opa( c, LV_OPA_COVER, LV_PART_MAIN );
     lv_obj_set_style_border_width( c, 0, LV_PART_MAIN );
-    lv_obj_set_style_bg_opa( c, LV_OPA_TRANSP, LV_PART_MAIN );
+    lv_obj_set_style_radius( c, 6, LV_PART_MAIN );
+    lv_obj_set_style_pad_all( c, 4, LV_PART_MAIN );
     lv_obj_set_style_line_width( c, 2, LV_PART_ITEMS );
     lv_obj_set_style_width( c, 0, LV_PART_INDICATOR );   // hide point markers
     lv_obj_set_style_height( c, 0, LV_PART_INDICATOR );
@@ -97,37 +132,51 @@ static lv_obj_t* mainLeft_spark(lv_obj_t* parent, int x, int y, int rmin, int rm
     return c;
 }
 
+// One "caption over value" cell of the bottom strip; returns the value label.
+#define CELL_W 110
+static lv_obj_t* mainLeft_cell(lv_obj_t* card, int i, const char* key) {
+    if (i > 0) {
+        lv_obj_t* d = lv_obj_create(card);
+        lv_obj_remove_style_all( d );
+        lv_obj_set_pos( d, i * CELL_W - 10, 2 );
+        lv_obj_set_size( d, 1, lv_pct(90) );
+        lv_obj_set_style_bg_color( d, lv_color_hex(GAUGE_DIVIDER), LV_PART_MAIN );
+        lv_obj_set_style_bg_opa( d, LV_OPA_COVER, LV_PART_MAIN );
+    }
+    mainLeft_text(card, LV_ALIGN_TOP_LEFT, i * CELL_W, 0, &lv_font_montserrat_14, GAUGE_KEY, key);
+    return mainLeft_text(card, LV_ALIGN_BOTTOM_LEFT, i * CELL_W, 0, &lv_font_montserrat_22, GAUGE_VALUE, "--");
+}
+
 void ui_mainLeft_screen_init(void)
 {
 ui_mainLeft = lv_obj_create(NULL);
 lv_obj_remove_flag( ui_mainLeft, LV_OBJ_FLAG_SCROLLABLE );    /// Flags
 
-// ── Column 1 (left): forward power — accent colour, not threshold-driven ──
-mainLeft_label(ui_mainLeft, -150, -126, &lv_font_montserrat_16, "POWER");
-ui_gPwr    = mainLeft_gauge(ui_mainLeft, -150, -84, 0, 1200, lv_color_hex(0x007AFF));
-ui_gPwrVal = mainLeft_label(ui_mainLeft, -150, -84, &lv_font_montserrat_20, "0W");
-ui_spPwr   = mainLeft_spark(ui_mainLeft, -150, -28, 0, 1200, lv_color_hex(0x007AFF));
+// ── Top row: three gauge cards. Power uses the accent colour (not threshold
+// driven); the temperature arcs are recoloured green/amber/red by updateGauges ──
+lv_obj_t* pwr = mainLeft_card(ui_mainLeft, 8, 8, 150, 188);
+mainLeft_text(pwr, LV_ALIGN_TOP_LEFT, 0, 0, &lv_font_montserrat_14, GAUGE_ACCENT, "POWER");
+ui_gPwr  = mainLeft_gauge(pwr, 1200, lv_color_hex(GAUGE_ACCENT), &ui_gPwrVal, &ui_gPwrUnit, "W");
+ui_spPwr = mainLeft_spark(pwr, 1200, lv_color_hex(GAUGE_ACCENT));
 
-// ── Column 2 (centre): water temperature ──
-mainLeft_label(ui_mainLeft, 0, -126, &lv_font_montserrat_16, "WATER");
-ui_gWater    = mainLeft_gauge(ui_mainLeft, 0, -84, 0, 100, lv_color_hex(0x00A000));
-ui_gWaterVal = mainLeft_label(ui_mainLeft, 0, -84, &lv_font_montserrat_20, "0C");
-ui_spWater   = mainLeft_spark(ui_mainLeft, 0, -28, 0, 100, lv_color_hex(0x00A000));
+lv_obj_t* wat = mainLeft_card(ui_mainLeft, 165, 8, 150, 188);
+mainLeft_text(wat, LV_ALIGN_TOP_LEFT, 0, 0, &lv_font_montserrat_14, GAUGE_ACCENT, "WATER");
+ui_gWater  = mainLeft_gauge(wat, 100, lv_color_hex(GAUGE_OK), &ui_gWaterVal, NULL, "\xC2\xB0" "C");
+ui_spWater = mainLeft_spark(wat, 100, lv_color_hex(GAUGE_OK));
 
-// ── Column 3 (right): plate temperature ──
-mainLeft_label(ui_mainLeft, 150, -126, &lv_font_montserrat_16, "PLATE");
-ui_gPlate    = mainLeft_gauge(ui_mainLeft, 150, -84, 0, 120, lv_color_hex(0x00A000));
-ui_gPlateVal = mainLeft_label(ui_mainLeft, 150, -84, &lv_font_montserrat_20, "0C");
-ui_spPlate   = mainLeft_spark(ui_mainLeft, 150, -28, 0, 120, lv_color_hex(0x00A000));
+lv_obj_t* plt = mainLeft_card(ui_mainLeft, 322, 8, 150, 188);
+mainLeft_text(plt, LV_ALIGN_TOP_LEFT, 0, 0, &lv_font_montserrat_14, GAUGE_ACCENT, "PLATE");
+ui_gPlate  = mainLeft_gauge(plt, 120, lv_color_hex(GAUGE_OK), &ui_gPlateVal, NULL, "\xC2\xB0" "C");
+ui_spPlate = mainLeft_spark(plt, 120, lv_color_hex(GAUGE_OK));
 
-// ── Bottom row: SWR gauge + electrical readouts ──
-mainLeft_label(ui_mainLeft, 0, 26, &lv_font_montserrat_16, "SWR");
-ui_gSwr    = mainLeft_gauge(ui_mainLeft, 0, 74, 10, 40, lv_color_hex(0x00A000));
-ui_gSwrVal = mainLeft_label(ui_mainLeft, 0, 74, &lv_font_montserrat_20, "1.0");
-
-ui_gCur   = mainLeft_label(ui_mainLeft, -150, 56, &lv_font_montserrat_20, "0A");
-ui_gVol   = mainLeft_label(ui_mainLeft, -150, 94, &lv_font_montserrat_20, "0V");
-ui_gCoeff = mainLeft_label(ui_mainLeft,  150, 74, &lv_font_montserrat_20, "0%");
+// ── Bottom strip: electrical readouts ──
+lv_obj_t* el = mainLeft_card(ui_mainLeft, 8, 204, 464, 60);
+lv_obj_set_style_pad_ver( el, 6, LV_PART_MAIN );
+lv_obj_set_style_pad_left( el, 20, LV_PART_MAIN );
+ui_gSwrVal = mainLeft_cell(el, 0, "SWR");
+ui_gCur    = mainLeft_cell(el, 1, "Current");
+ui_gVol    = mainLeft_cell(el, 2, "Voltage");
+ui_gCoeff  = mainLeft_cell(el, 3, "Efficiency");
 
 lv_obj_add_event_cb(ui_mainLeft, ui_event_mainLeft, LV_EVENT_ALL, NULL);
 
@@ -139,10 +188,10 @@ void ui_mainLeft_screen_destroy(void)
 
 // NULL screen variables
 ui_mainLeft= NULL;
-ui_gPwr= NULL;    ui_gPwrVal= NULL;    ui_spPwr= NULL;
-ui_gSwr= NULL;    ui_gSwrVal= NULL;
+ui_gPwr= NULL;    ui_gPwrVal= NULL;    ui_gPwrUnit= NULL;  ui_spPwr= NULL;
 ui_gWater= NULL;  ui_gWaterVal= NULL;  ui_spWater= NULL;
 ui_gPlate= NULL;  ui_gPlateVal= NULL;  ui_spPlate= NULL;
+ui_gSwrVal= NULL;
 ui_gCur= NULL;
 ui_gVol= NULL;
 ui_gCoeff= NULL;

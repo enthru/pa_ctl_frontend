@@ -345,16 +345,19 @@ void setupLVGLButtonHandler() {
 
 // ui_mainLeft gauge dashboard
 
-// Recolour a gauge's arc as its value nears (amber) / crosses (red) its
-// protection limit; green otherwise. state: -1 uninit, 0 ok, 1 warn, 2 alarm.
-// alarmAt<=0 means the limit isn't known yet (settings not received) -> green.
-static void colorArc(lv_obj_t* arc, int8_t* state, float v, float warnAt, float alarmAt) {
+// Recolour a gauge's arc (or a readout's text) as its value nears (amber) /
+// crosses (red) its protection limit; green arc / dark text otherwise.
+// state: -1 uninit, 0 ok, 1 warn, 2 alarm. alarmAt<=0 means the limit isn't
+// known yet (settings not received) -> ok.
+static void colorArc(lv_obj_t* obj, int8_t* state, float v, float warnAt, float alarmAt, bool text = false) {
     int8_t s = (alarmAt <= 0) ? 0 : (v >= alarmAt) ? 2 : (v >= warnAt) ? 1 : 0;
     if (s != *state) {
         *state = s;
         lv_color_t c = (s == 2) ? lv_color_hex(0xE00000)
-                     : (s == 1) ? lv_color_hex(0xE07000) : lv_color_hex(0x00A000);
-        lv_obj_set_style_arc_color(arc, c, LV_PART_INDICATOR);
+                     : (s == 1) ? lv_color_hex(0xE07000)
+                     : lv_color_hex(text ? 0x202020 : 0x00A000);
+        if (text) lv_obj_set_style_text_color(obj, c, LV_PART_MAIN);
+        else      lv_obj_set_style_arc_color(obj, c, LV_PART_INDICATOR);
     }
 }
 
@@ -370,8 +373,8 @@ void updateGauges(bool force) {
     if (force) { lPwr = lSwr = lWat = lPlt = lCur = lVol = lCoe = -1; sSwr = sWat = sPlt = -1; }
 
     // Same rule as the ui_main readouts: in debug mode fwd/current/voltage are raw ADC
-    // volts, so retag them and blank the derived SWR/efficiency gauges rather than let a
-    // dial read "2W" or "1.70" for what is actually a detector voltage.
+    // volts, so retag them and blank the derived SWR/efficiency readouts rather than let a
+    // dial read "2 W" or "1.70" for what is actually a detector voltage.
     const bool dbg = status.debug;
     // Debug flips the meaning of the cached values, so force one full repaint on entry
     // and exit — otherwise an unchanged number keeps its stale unit suffix.
@@ -383,48 +386,48 @@ void updateGauges(bool force) {
         if (dbg) {
             // Arc spans 0..1200 W; rescale to the ADC's 0..3.3 V full scale.
             lv_arc_set_value(ui_gPwr, (int)(status.fwd * (1200.0f / 3.3f)));
-            snprintf(b, sizeof(b), "%.3fV", status.fwd);
+            snprintf(b, sizeof(b), "%.3f", status.fwd);
         } else {
             lv_arc_set_value(ui_gPwr, (int)status.fwd);
-            snprintf(b, sizeof(b), "%.0fW", status.fwd);
+            snprintf(b, sizeof(b), "%.0f", status.fwd);
         }
         lv_label_set_text(ui_gPwrVal, b);
+        lv_label_set_text(ui_gPwrUnit, dbg ? "V" : "W");
     }
     if (status.swr != lSwr) {
         lSwr = status.swr;
-        lv_arc_set_value(ui_gSwr, dbg ? 10 : (int)(status.swr * 10));   // park at 1.00
         if (dbg) { lv_label_set_text(ui_gSwrVal, "--"); }
         else { snprintf(b, sizeof(b), "%.2f", status.swr); lv_label_set_text(ui_gSwrVal, b); }
     }
-    colorArc(ui_gSwr, &sSwr, dbg ? 0.0f : status.swr, 0.8f * settings.max_swr, settings.max_swr);
+    colorArc(ui_gSwrVal, &sSwr, dbg ? 0.0f : status.swr, 0.8f * settings.max_swr, settings.max_swr, true);
     if (status.water_temp != lWat) {
         lWat = status.water_temp;
         lv_arc_set_value(ui_gWater, (int)status.water_temp);
-        snprintf(b, sizeof(b), "%.0fC", status.water_temp); lv_label_set_text(ui_gWaterVal, b);
+        snprintf(b, sizeof(b), "%.0f", status.water_temp); lv_label_set_text(ui_gWaterVal, b);
     }
     colorArc(ui_gWater, &sWat, status.water_temp, 0.9f * settings.max_water_temp, settings.max_water_temp);
     if (status.plate_temp != lPlt) {
         lPlt = status.plate_temp;
         lv_arc_set_value(ui_gPlate, (int)status.plate_temp);
-        snprintf(b, sizeof(b), "%.0fC", status.plate_temp); lv_label_set_text(ui_gPlateVal, b);
+        snprintf(b, sizeof(b), "%.0f", status.plate_temp); lv_label_set_text(ui_gPlateVal, b);
     }
     colorArc(ui_gPlate, &sPlt, status.plate_temp, 0.9f * settings.max_plate_temp, settings.max_plate_temp);
     if (status.current != lCur) {
         lCur = status.current;
-        if (dbg) { snprintf(b, sizeof(b), "%.3fV", status.current); }
-        else     { snprintf(b, sizeof(b), "%.1fA", status.current); }
+        if (dbg) { snprintf(b, sizeof(b), "%.3f V", status.current); }
+        else     { snprintf(b, sizeof(b), "%.1f A", status.current); }
         lv_label_set_text(ui_gCur, b);
     }
     if (status.voltage != lVol) {
         lVol = status.voltage;
-        if (dbg) { snprintf(b, sizeof(b), "%.3fV", status.voltage); }
-        else     { snprintf(b, sizeof(b), "%.1fV", status.voltage); }
+        if (dbg) { snprintf(b, sizeof(b), "%.3f V", status.voltage); }
+        else     { snprintf(b, sizeof(b), "%.1f V", status.voltage); }
         lv_label_set_text(ui_gVol, b);
     }
     if (status.coeff != lCoe) {
         lCoe = status.coeff;
         if (dbg) { lv_label_set_text(ui_gCoeff, "--"); }
-        else { snprintf(b, sizeof(b), "%.0f%%", status.coeff); lv_label_set_text(ui_gCoeff, b); }
+        else { snprintf(b, sizeof(b), "%.0f %%", status.coeff); lv_label_set_text(ui_gCoeff, b); }
     }
 }
 
