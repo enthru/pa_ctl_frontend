@@ -382,7 +382,9 @@ void handleRoot() {
             .catch(() => { box.checked = !box.checked; });   // refused (busy/TX): don't show a state we're not in
         });
         loadLimits(1);
-        updateStatus(); updateLink();
+        // No immediate updateLink(): lastOk is still 0 until the first /status reply
+        // lands, so it would flash NO LINK on every page load.
+        updateStatus();
         setInterval(updateStatus, 500);
         setInterval(updateLink, 1000);
     </script>
