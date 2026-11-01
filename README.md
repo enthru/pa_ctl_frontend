@@ -10,13 +10,12 @@ Few web screenshots:<br>
 ![calibration](docs/web/calibration.jpg)
 
 Few interface photos:<br>
-![main screen](https://enthru.net/wp-content/uploads/2026/03/2026-03-10-10.01.51.jpg)
-![band selection](https://enthru.net/wp-content/uploads/2025/12/band.jpg)
-![settings 1](https://enthru.net/wp-content/uploads/2025/12/s1.jpg)
-![settings 2](https://enthru.net/wp-content/uploads/2025/12/s2.jpg)
-![wifi](https://enthru.net/wp-content/uploads/2025/12/wifi.jpg)
-![status](https://enthru.net/wp-content/uploads/2025/12/status.jpg)
-![graph](https://enthru.net/wp-content/uploads/2025/12/graph.jpg)
+![main screen](docs/display/main.jpg)
+![gauges](docs/display/gauges.jpg)
+![system info](docs/display/info.jpg)
+![settings 1](docs/display/settings1.jpg)
+![settings 2](docs/display/settings2.jpg)
+![wifi](docs/display/wifi.jpg)
 
 Backend code - https://github.com/enthru/pa_ctl_backend <br>
 Backend hardware - https://oshwlab.com/enthru/pa_ctl
