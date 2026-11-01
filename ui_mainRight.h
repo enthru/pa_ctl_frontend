@@ -15,16 +15,17 @@ extern void ui_mainRight_screen_init(void);
 extern void ui_mainRight_screen_destroy(void);
 extern void ui_event_mainRight( lv_event_t * e);
 extern lv_obj_t *ui_mainRight;
-extern lv_obj_t *ui_Label43;
-extern lv_obj_t *ui_Label44;
-extern lv_obj_t *ui_Label45;
-extern lv_obj_t *ui_Label46;
-extern lv_obj_t *ui_Label47;
-extern lv_obj_t *ui_Label48;
-extern lv_obj_t *ui_Label49;
-extern lv_obj_t *ui_ipADDR;
 extern lv_obj_t *ui_SSID;
+extern lv_obj_t *ui_ipADDR;
+extern lv_obj_t *ui_rssi;
 extern lv_obj_t *ui_uptime;
+extern lv_obj_t *ui_peaksCard;
+extern lv_obj_t *ui_pkWater;
+extern lv_obj_t *ui_pkPlate;
+extern lv_obj_t *ui_pkSwr;
+extern lv_obj_t *ui_pkPwr;
+extern lv_obj_t *ui_feVer;
+extern lv_obj_t *ui_beVer;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus

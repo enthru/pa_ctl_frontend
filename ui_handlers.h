@@ -17,6 +17,8 @@ String getUptime();
 
 // ─── Screen event handlers ────────────────────────────────────────────────────
 void mainRightLoaded(lv_event_t *e);
+void resetPeaks(lv_event_t *e);       // long-press on the PEAKS card
+void trackPeaks(void);                 // per status frame: update session maxima
 void protectionOpened(lv_event_t *e);
 void bandOpened(lv_event_t *e);
 void resetAlert(lv_event_t *e);

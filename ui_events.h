@@ -19,6 +19,7 @@ void bandOpened(lv_event_t * e);
 void toggleAutoBand(lv_event_t * e);
 void set_band(lv_event_t * e);
 void mainRightLoaded(lv_event_t * e);
+void resetPeaks(lv_event_t * e);
 void resetAlert(lv_event_t * e);
 void saveSettings(lv_event_t * e);
 

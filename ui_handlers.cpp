@@ -97,10 +97,76 @@ String getUptime() {
 
 // ─── Screen event handlers ────────────────────────────────────────────────────
 
+// ─── ui_mainRight: system info ───────────────────────────────────────────────
+
+// Session peaks since boot (or the last long-press reset). -1 = nothing seen yet.
+static float pkWater = -1, pkPlate = -1, pkSwr = -1, pkPwr = -1;
+
+// Called for every status frame. Temperatures come from the DS18B20s and are
+// real in debug mode too; power and SWR are skipped there (fwd is a detector
+// voltage, swr reads 0). SWR is only meaningful under drive, so it is sampled
+// only while the backend reports PTT — otherwise idle noise would set the peak.
+void trackPeaks(void) {
+    if (status.water_temp > pkWater) pkWater = status.water_temp;
+    if (status.plate_temp > pkPlate) pkPlate = status.plate_temp;
+    if (status.debug) return;
+    if (status.fwd > pkPwr) pkPwr = status.fwd;
+    if (status.ptt && status.swr > pkSwr) pkSwr = status.swr;
+}
+
+static void labelSetIfChanged(lv_obj_t *l, const char *txt) {
+    if (strcmp(lv_label_get_text(l), txt) != 0) lv_label_set_text(l, txt);
+}
+
+static void infoRefresh() {
+    if (!ui_mainRight || lv_scr_act() != ui_mainRight) return;
+    char b[40];
+    const bool up = WiFi.status() == WL_CONNECTED;
+
+    labelSetIfChanged(ui_SSID, up ? WiFi.SSID().c_str()
+                                  : (ssid.length() ? ssid.c_str() : "not set"));
+    labelSetIfChanged(ui_ipADDR, up ? WiFi.localIP().toString().c_str() : "--");
+    if (up) snprintf(b, sizeof(b), "%ld dBm", (long)WiFi.RSSI());
+    labelSetIfChanged(ui_rssi, up ? b : "offline");
+    lv_obj_set_style_text_color(ui_rssi, lv_color_hex(up ? 0x202020 : 0xE00000), LV_PART_MAIN);
+    labelSetIfChanged(ui_uptime, getUptime().c_str());
+
+    if (pkWater < 0) strcpy(b, "--"); else snprintf(b, sizeof(b), "%.1f C", pkWater);
+    labelSetIfChanged(ui_pkWater, b);
+    if (pkPlate < 0) strcpy(b, "--"); else snprintf(b, sizeof(b), "%.1f C", pkPlate);
+    labelSetIfChanged(ui_pkPlate, b);
+    if (pkSwr < 0)   strcpy(b, "--"); else snprintf(b, sizeof(b), "%.2f", pkSwr);
+    labelSetIfChanged(ui_pkSwr, b);
+    if (pkPwr < 0)   strcpy(b, "--"); else snprintf(b, sizeof(b), "%.0f W", pkPwr);
+    labelSetIfChanged(ui_pkPwr, b);
+}
+
+// Frontend "version" is the build timestamp, reformatted from __DATE__
+// ("Nov  1 2026") / __TIME__ ("17:42:03") to "2026-11-01 17:42".
+static const char* frontendVersion() {
+    static char v[24];
+    if (!v[0]) {
+        static const char months[] = "JanFebMarAprMayJunJulAugSepOctNovDec";
+        const char *d = __DATE__;
+        int mon = (strstr(months, String(d).substring(0, 3).c_str()) - months) / 3 + 1;
+        snprintf(v, sizeof(v), "%.4s-%02d-%02d %.5s", d + 7, mon, atoi(d + 4), __TIME__);
+    }
+    return v;
+}
+
 void mainRightLoaded(lv_event_t * /*e*/) {
-    lv_label_set_text(ui_SSID,   WiFi.SSID().c_str());
-    lv_label_set_text(ui_ipADDR, WiFi.localIP().toString().c_str());
-    lv_label_set_text(ui_uptime, getUptime().c_str());
+    lv_label_set_text(ui_feVer, frontendVersion());
+    // Backend version is not reported over UART yet — ui_beVer stays "--".
+    infoRefresh();
+    // Uptime/RSSI tick on their own, independent of UART traffic. One timer for
+    // the program lifetime; it is a no-op while another screen is active.
+    static lv_timer_t *t = nullptr;
+    if (!t) t = lv_timer_create([](lv_timer_t *) { infoRefresh(); }, 1000, nullptr);
+}
+
+void resetPeaks(lv_event_t * /*e*/) {
+    pkWater = pkPlate = pkSwr = pkPwr = -1;
+    infoRefresh();
 }
 
 void protectionOpened(lv_event_t * /*e*/) {

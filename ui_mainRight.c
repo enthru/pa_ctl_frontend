@@ -2,10 +2,27 @@
 // SquareLine Studio version: SquareLine Studio 1.5.4
 // LVGL version: 9.1.0
 // Project name: pa_ctl
+//
+// ui_mainRight is the "system info" screen (swipe right from ui_main to return).
+// Two cards side by side — NETWORK (SSID / IP / signal / uptime) and SESSION
+// PEAKS (max water / plate temp, SWR, power since boot; long-press to reset) —
+// over a version strip. Values are filled by infoRefresh() in ui_handlers.cpp,
+// which repaints once a second while the screen is shown.
 
 #include "ui.h"
 
-lv_obj_t *ui_mainRight = NULL;lv_obj_t *ui_Label43 = NULL;lv_obj_t *ui_Label44 = NULL;lv_obj_t *ui_Label45 = NULL;lv_obj_t *ui_Label46 = NULL;lv_obj_t *ui_Label47 = NULL;lv_obj_t *ui_Label48 = NULL;lv_obj_t *ui_Label49 = NULL;lv_obj_t *ui_ipADDR = NULL;lv_obj_t *ui_SSID = NULL;lv_obj_t *ui_uptime = NULL;
+#define INFO_CARD_BG   0xF2F4F7
+#define INFO_ACCENT    0x007AFF
+#define INFO_KEY       0x707070
+#define INFO_VALUE     0x202020
+#define INFO_DIVIDER   0xDDE1E6
+
+lv_obj_t *ui_mainRight = NULL;
+lv_obj_t *ui_SSID = NULL;   lv_obj_t *ui_ipADDR = NULL;  lv_obj_t *ui_rssi = NULL;   lv_obj_t *ui_uptime = NULL;
+lv_obj_t *ui_peaksCard = NULL;
+lv_obj_t *ui_pkWater = NULL; lv_obj_t *ui_pkPlate = NULL; lv_obj_t *ui_pkSwr = NULL; lv_obj_t *ui_pkPwr = NULL;
+lv_obj_t *ui_feVer = NULL;   lv_obj_t *ui_beVer = NULL;
+
 // event funtions
 void ui_event_mainRight( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -19,100 +36,90 @@ if ( event_code == LV_EVENT_SCREEN_LOADED) {
 }
 }
 
+static void ui_event_peaksCard( lv_event_t * e) {
+    if ( lv_event_get_code(e) == LV_EVENT_LONG_PRESSED ) resetPeaks( e );
+}
+
 // build funtions
+
+// Rounded flat panel. Not scrollable; swipes bubble up to the screen so the
+// swipe-back gesture still works when it starts on a card.
+static lv_obj_t* mainRight_card(lv_obj_t* parent, int x, int y, int w, int h) {
+    lv_obj_t* c = lv_obj_create(parent);
+    lv_obj_set_pos( c, x, y );
+    lv_obj_set_size( c, w, h );
+    lv_obj_remove_flag( c, LV_OBJ_FLAG_SCROLLABLE );
+    lv_obj_add_flag( c, LV_OBJ_FLAG_GESTURE_BUBBLE );
+    lv_obj_set_style_bg_color( c, lv_color_hex(INFO_CARD_BG), LV_PART_MAIN );
+    lv_obj_set_style_border_width( c, 0, LV_PART_MAIN );
+    lv_obj_set_style_radius( c, 10, LV_PART_MAIN );
+    lv_obj_set_style_shadow_width( c, 0, LV_PART_MAIN );
+    lv_obj_set_style_pad_hor( c, 12, LV_PART_MAIN );
+    lv_obj_set_style_pad_ver( c, 10, LV_PART_MAIN );
+    return c;
+}
+
+static lv_obj_t* mainRight_text(lv_obj_t* parent, lv_align_t align, int x, int y,
+                                const lv_font_t* font, uint32_t color, const char* txt) {
+    lv_obj_t* l = lv_label_create(parent);
+    lv_obj_set_align( l, align );
+    lv_obj_set_pos( l, x, y );
+    lv_obj_set_style_text_font( l, font, LV_PART_MAIN | LV_STATE_DEFAULT );
+    lv_obj_set_style_text_color( l, lv_color_hex(color), LV_PART_MAIN | LV_STATE_DEFAULT );
+    lv_label_set_text( l, txt );
+    return l;
+}
+
+// One "key ........ value" row of a card; returns the value label. The value is
+// right-aligned in a fixed-width box and clipped with "..." (long SSIDs).
+#define ROW_Y(i) (30 + (i) * 36)
+static lv_obj_t* mainRight_row(lv_obj_t* card, int i, const char* key) {
+    if (i > 0) {
+        lv_obj_t* d = lv_obj_create(card);
+        lv_obj_remove_style_all( d );
+        lv_obj_set_pos( d, 0, ROW_Y(i) - 9 );
+        lv_obj_set_size( d, lv_pct(100), 1 );
+        lv_obj_set_style_bg_color( d, lv_color_hex(INFO_DIVIDER), LV_PART_MAIN );
+        lv_obj_set_style_bg_opa( d, LV_OPA_COVER, LV_PART_MAIN );
+    }
+    mainRight_text(card, LV_ALIGN_TOP_LEFT, 0, ROW_Y(i) + 1, &lv_font_montserrat_14, INFO_KEY, key);
+    lv_obj_t* v = mainRight_text(card, LV_ALIGN_TOP_RIGHT, 0, ROW_Y(i), &lv_font_montserrat_16, INFO_VALUE, "--");
+    lv_obj_set_width( v, 140 );
+    lv_label_set_long_mode( v, LV_LABEL_LONG_DOT );
+    lv_obj_set_style_text_align( v, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN );
+    return v;
+}
 
 void ui_mainRight_screen_init(void)
 {
 ui_mainRight = lv_obj_create(NULL);
 lv_obj_remove_flag( ui_mainRight, LV_OBJ_FLAG_SCROLLABLE );    /// Flags
 
-ui_Label43 = lv_label_create(ui_mainRight);
-lv_obj_set_width( ui_Label43, LV_SIZE_CONTENT);  /// 1
-lv_obj_set_height( ui_Label43, LV_SIZE_CONTENT);   /// 1
-lv_obj_set_x( ui_Label43, -168 );
-lv_obj_set_y( ui_Label43, -115 );
-lv_obj_set_align( ui_Label43, LV_ALIGN_CENTER );
-lv_label_set_text(ui_Label43,"WI-FI SSID:");
-lv_obj_set_style_text_font(ui_Label43, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
+// ── Left card: network ──
+lv_obj_t* net = mainRight_card(ui_mainRight, 8, 8, 228, 196);
+mainRight_text(net, LV_ALIGN_TOP_LEFT, 0, 0, &lv_font_montserrat_14, INFO_ACCENT, "NETWORK");
+ui_SSID   = mainRight_row(net, 0, "SSID");
+ui_ipADDR = mainRight_row(net, 1, "IP");
+ui_rssi   = mainRight_row(net, 2, "Signal");
+ui_uptime = mainRight_row(net, 3, "Uptime");
 
-ui_Label44 = lv_label_create(ui_mainRight);
-lv_obj_set_width( ui_Label44, LV_SIZE_CONTENT);  /// 1
-lv_obj_set_height( ui_Label44, LV_SIZE_CONTENT);   /// 1
-lv_obj_set_x( ui_Label44, -169 );
-lv_obj_set_y( ui_Label44, -90 );
-lv_obj_set_align( ui_Label44, LV_ALIGN_CENTER );
-lv_label_set_text(ui_Label44,"IP address:");
-lv_obj_set_style_text_font(ui_Label44, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
+// ── Right card: peaks since boot (long-press to reset) ──
+ui_peaksCard = mainRight_card(ui_mainRight, 244, 8, 228, 196);
+mainRight_text(ui_peaksCard, LV_ALIGN_TOP_LEFT,  0, 0, &lv_font_montserrat_14, INFO_ACCENT, "PEAKS");
+mainRight_text(ui_peaksCard, LV_ALIGN_TOP_RIGHT, 0, 0, &lv_font_montserrat_14, INFO_KEY,    "hold to reset");
+ui_pkWater = mainRight_row(ui_peaksCard, 0, "Water");
+ui_pkPlate = mainRight_row(ui_peaksCard, 1, "Plate");
+ui_pkSwr   = mainRight_row(ui_peaksCard, 2, "SWR");
+ui_pkPwr   = mainRight_row(ui_peaksCard, 3, "Power");
+lv_obj_add_event_cb(ui_peaksCard, ui_event_peaksCard, LV_EVENT_LONG_PRESSED, NULL);
 
-ui_Label45 = lv_label_create(ui_mainRight);
-lv_obj_set_width( ui_Label45, LV_SIZE_CONTENT);  /// 1
-lv_obj_set_height( ui_Label45, LV_SIZE_CONTENT);   /// 1
-lv_obj_set_x( ui_Label45, -183 );
-lv_obj_set_y( ui_Label45, -66 );
-lv_obj_set_align( ui_Label45, LV_ALIGN_CENTER );
-lv_label_set_text(ui_Label45,"Uptime:");
-lv_obj_set_style_text_font(ui_Label45, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
-
-ui_Label46 = lv_label_create(ui_mainRight);
-lv_obj_set_width( ui_Label46, LV_SIZE_CONTENT);  /// 1
-lv_obj_set_height( ui_Label46, LV_SIZE_CONTENT);   /// 1
-lv_obj_set_x( ui_Label46, -168 );
-lv_obj_set_y( ui_Label46, -42 );
-lv_obj_set_align( ui_Label46, LV_ALIGN_CENTER );
-lv_label_set_text(ui_Label46,"Max. temp:");
-lv_obj_set_style_text_font(ui_Label46, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
-
-ui_Label47 = lv_label_create(ui_mainRight);
-lv_obj_set_width( ui_Label47, LV_SIZE_CONTENT);  /// 1
-lv_obj_set_height( ui_Label47, LV_SIZE_CONTENT);   /// 1
-lv_obj_set_x( ui_Label47, -171 );
-lv_obj_set_y( ui_Label47, -16 );
-lv_obj_set_align( ui_Label47, LV_ALIGN_CENTER );
-lv_label_set_text(ui_Label47,"Max. SWR:");
-lv_obj_set_style_text_font(ui_Label47, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
-
-ui_Label48 = lv_label_create(ui_mainRight);
-lv_obj_set_width( ui_Label48, LV_SIZE_CONTENT);  /// 1
-lv_obj_set_height( ui_Label48, LV_SIZE_CONTENT);   /// 1
-lv_obj_set_x( ui_Label48, -171 );
-lv_obj_set_y( ui_Label48, 120 );
-lv_obj_set_align( ui_Label48, LV_ALIGN_CENTER );
-lv_label_set_text(ui_Label48,"Backend version:");
-
-ui_Label49 = lv_label_create(ui_mainRight);
-lv_obj_set_width( ui_Label49, LV_SIZE_CONTENT);  /// 1
-lv_obj_set_height( ui_Label49, LV_SIZE_CONTENT);   /// 1
-lv_obj_set_x( ui_Label49, 81 );
-lv_obj_set_y( ui_Label49, 120 );
-lv_obj_set_align( ui_Label49, LV_ALIGN_CENTER );
-lv_label_set_text(ui_Label49,"Frontend version:");
-
-ui_ipADDR = lv_label_create(ui_mainRight);
-lv_obj_set_width( ui_ipADDR, LV_SIZE_CONTENT);  /// 1
-lv_obj_set_height( ui_ipADDR, LV_SIZE_CONTENT);   /// 1
-lv_obj_set_x( ui_ipADDR, 6 );
-lv_obj_set_y( ui_ipADDR, -90 );
-lv_obj_set_align( ui_ipADDR, LV_ALIGN_CENTER );
-lv_label_set_text(ui_ipADDR,"XXX");
-lv_obj_set_style_text_font(ui_ipADDR, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
-
-ui_SSID = lv_label_create(ui_mainRight);
-lv_obj_set_width( ui_SSID, LV_SIZE_CONTENT);  /// 1
-lv_obj_set_height( ui_SSID, LV_SIZE_CONTENT);   /// 1
-lv_obj_set_x( ui_SSID, 3 );
-lv_obj_set_y( ui_SSID, -115 );
-lv_obj_set_align( ui_SSID, LV_ALIGN_CENTER );
-lv_label_set_text(ui_SSID,"XXX");
-lv_obj_set_style_text_font(ui_SSID, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
-
-ui_uptime = lv_label_create(ui_mainRight);
-lv_obj_set_width( ui_uptime, LV_SIZE_CONTENT);  /// 1
-lv_obj_set_height( ui_uptime, LV_SIZE_CONTENT);   /// 1
-lv_obj_set_x( ui_uptime, -3 );
-lv_obj_set_y( ui_uptime, -66 );
-lv_obj_set_align( ui_uptime, LV_ALIGN_CENTER );
-lv_label_set_text(ui_uptime,"XXX");
-lv_obj_set_style_text_font(ui_uptime, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
+// ── Bottom strip: versions ──
+lv_obj_t* ver = mainRight_card(ui_mainRight, 8, 212, 464, 52);
+lv_obj_set_style_pad_ver( ver, 6, LV_PART_MAIN );
+mainRight_text(ver, LV_ALIGN_TOP_LEFT, 0,   0, &lv_font_montserrat_14, INFO_KEY, "Frontend");
+ui_feVer = mainRight_text(ver, LV_ALIGN_BOTTOM_LEFT, 0, 0, &lv_font_montserrat_16, INFO_VALUE, "--");
+mainRight_text(ver, LV_ALIGN_TOP_LEFT, 232, 0, &lv_font_montserrat_14, INFO_KEY, "Backend");
+ui_beVer = mainRight_text(ver, LV_ALIGN_BOTTOM_LEFT, 232, 0, &lv_font_montserrat_16, INFO_VALUE, "--");
 
 lv_obj_add_event_cb(ui_mainRight, ui_event_mainRight, LV_EVENT_ALL, NULL);
 
@@ -124,15 +131,9 @@ void ui_mainRight_screen_destroy(void)
 
 // NULL screen variables
 ui_mainRight= NULL;
-ui_Label43= NULL;
-ui_Label44= NULL;
-ui_Label45= NULL;
-ui_Label46= NULL;
-ui_Label47= NULL;
-ui_Label48= NULL;
-ui_Label49= NULL;
-ui_ipADDR= NULL;
-ui_SSID= NULL;
-ui_uptime= NULL;
+ui_SSID= NULL;    ui_ipADDR= NULL;  ui_rssi= NULL;   ui_uptime= NULL;
+ui_peaksCard= NULL;
+ui_pkWater= NULL; ui_pkPlate= NULL; ui_pkSwr= NULL;  ui_pkPwr= NULL;
+ui_feVer= NULL;   ui_beVer= NULL;
 
 }

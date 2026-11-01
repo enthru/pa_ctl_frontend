@@ -330,6 +330,8 @@ static void colorThresh(lv_obj_t* obj, int8_t* state, lv_color_t* def, bool* hav
 static void processParsedData() {
     if (waitingForResponse != RESPONSE_NONE) return;
 
+    trackPeaks();
+
     unsigned long nowMs = millis();
     // Sample the trend sparklines at ~1 Hz. Runs regardless of the active screen
     // so ~100 s of history has already accrued by the time ui_mainLeft is opened.
